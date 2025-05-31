@@ -13,8 +13,10 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-4">
         {/* Social Links */}
         <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-3">Connect with Us</h3>
-          <div className="flex space-x-6">
+          <h3 className="text-xl font-semibold mb-3 text-center sm:text-left">
+            Connect with Us
+          </h3>
+          <div className="flex flex-wrap justify-center sm:justify-start gap-4 sm:gap-6">
             <a
               href="https://facebook.com"
               target="_blank"
