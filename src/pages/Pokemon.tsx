@@ -1,55 +1,110 @@
-// This will be the start of your Pokémon Storefront React component
-// We'll fetch and display all listed Pokémon items from Firestore
-
-import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
+import PokemonCard from "../components/PokemonCard";
+import PokemonModal from "../components/PokemonModal";
+
+const CARDS_PER_PAGE = 9;
 
 export default function PokemonStorefront() {
-  const [items, setItems] = useState<any[]>([]);
+  const [allCards, setAllCards] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [modalImages, setModalImages] = useState<string[]>([]);
+  const [modalStartIndex, setModalStartIndex] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchListedPokemon = async () => {
-    const q = query(collection(db, "pokemon"), where("status", "==", "Listed"));
-    const snap = await getDocs(q);
-    setItems(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const filteredCards = allCards.filter(
+    (card) =>
+      card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (card.set && card.set.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const totalPages = Math.ceil(filteredCards.length / CARDS_PER_PAGE);
+  const paginatedCards = filteredCards.slice(0, currentPage * CARDS_PER_PAGE);
+
+  const lastCardRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && currentPage < totalPages) {
+          setCurrentPage((prev) => prev + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [currentPage, totalPages]
+  );
+
+  const fetchCards = async () => {
+    const snap = await getDocs(collection(db, "pokemon"));
+    const listedCards = snap.docs
+      .map((doc) => doc.data())
+      .filter((card) => card.status === "Listed");
+    setAllCards(listedCards);
   };
 
   useEffect(() => {
-    fetchListedPokemon();
+    fetchCards();
   }, []);
 
+  const handleCardImageClick = (images: string[], index: number) => {
+    setModalImages(images);
+    setModalStartIndex(index);
+    setModalVisible(true);
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Pokémon Storefront</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="border rounded shadow p-4 bg-white hover:shadow-lg transition"
+    <div className="bg-gray-100 min-h-screen">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-wrap gap-4 items-center mb-6">
+          <input
+            type="text"
+            placeholder="Search cards by name or set..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="flex-1 p-3 border rounded shadow-sm"
+          />
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setCurrentPage(1);
+            }}
+            className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition"
           >
-            <img
-              src={item.images?.[0] || ""}
-              alt={item.name}
-              loading="lazy"
-              className="w-full h-48 object-cover rounded mb-2"
-            />
-            <h2 className="font-semibold text-lg mb-1">{item.name}</h2>
-            <p className="text-sm text-gray-600">Set: {item.set}</p>
-            <p className="text-sm text-gray-600">Condition: {item.condition}</p>
-            <p className="text-blue-600 font-semibold mt-1">${item.price}</p>
-            {item.stripeLink && (
-              <a
-                href={item.stripeLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block bg-blue-600 text-white px-4 py-2 rounded text-center"
-              >
-                Buy Now
-              </a>
-            )}
-          </div>
-        ))}
+            Clear
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {paginatedCards.map((card, idx) => {
+            const isLast = idx === paginatedCards.length - 1;
+            return (
+              <div ref={isLast ? lastCardRef : null} key={idx}>
+                <PokemonCard
+                  card={card}
+                  onImageClick={(index) =>
+                    handleCardImageClick(card.images || [], index)
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {modalVisible && (
+        <PokemonModal
+          images={modalImages}
+          startIndex={modalStartIndex}
+          onClose={() => setModalVisible(false)}
+        />
+      )}
     </div>
   );
 }
