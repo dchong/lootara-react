@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { db, storage } from "@/firebase";
 import {
   collection,
   getDocs,
@@ -7,17 +8,16 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import { db } from "../firebase";
-import { uploadImages } from "../utils/uploadImages";
-import { PokemonProduct } from "../types";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { PokemonProduct } from "@/types";
 import ProductCard from "./ProductCard";
 
-const defaultProduct: PokemonProduct = {
+const initialProduct: PokemonProduct = {
   name: "",
   set: "",
   condition: "",
   price: 0,
-  purchasePrice: undefined,
+  purchasePrice: 0,
   purchasedFrom: "",
   status: "",
   notes: "",
@@ -26,224 +26,216 @@ const defaultProduct: PokemonProduct = {
   images: [],
 };
 
-const PokemonForm = () => {
-  const [product, setProduct] = useState<PokemonProduct>(defaultProduct);
-  const [products, setProducts] = useState<PokemonProduct[]>([]);
+export default function PokemonForm() {
+  const [product, setProduct] = useState<PokemonProduct>(initialProduct);
   const [imageFiles, setImageFiles] = useState<FileList | null>(null);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [products, setProducts] = useState<(PokemonProduct & { id: string })[]>(
+    []
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  const loadProducts = async () => {
-    const snapshot = await getDocs(collection(db, "pokemon"));
-    const all = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as PokemonProduct[];
-
-    const filtered = all.filter((item) => {
-      const matchName = item.name.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter ? item.status === statusFilter : true;
-      return matchName && matchStatus;
-    });
-
-    setProducts(filtered);
-  };
-
   useEffect(() => {
-    loadProducts();
-  }, [search, statusFilter]);
+    fetchProducts();
+  }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setProduct((prev) => ({
-      ...prev,
-      [name]:
-        name === "price" || name === "purchasePrice"
-          ? parseFloat(value) || 0
-          : value,
-    }));
+  const fetchProducts = async () => {
+    const snapshot = await getDocs(collection(db, "pokemon"));
+    const data = snapshot.docs.map(
+      (doc) =>
+        ({ id: doc.id, ...doc.data() } as PokemonProduct & { id: string })
+    );
+    setProducts(data);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    let imageUrls: string[] = [];
 
-    try {
-      let imageUrls: string[] = [];
-      if (imageFiles && imageFiles.length) {
-        imageUrls = await uploadImages(imageFiles, "pokemon");
-      }
-
-      const data: PokemonProduct = {
-        ...product,
-        images: imageUrls.length ? imageUrls : product.images,
-      };
-
-      if (editingId) {
-        await updateDoc(doc(db, "pokemon", editingId), data);
-      } else {
-        await addDoc(collection(db, "pokemon"), data);
-      }
-
-      setStatusMessage(
-        editingId ? "Updated successfully!" : "Saved successfully!"
-      );
-      setProduct(defaultProduct);
-      setImageFiles(null);
-      setEditingId(null);
-      loadProducts();
-    } catch (err) {
-      console.error(err);
-      setStatusMessage("Error saving product.");
+    if (imageFiles && imageFiles.length) {
+      const uploadPromises = Array.from(imageFiles).map(async (file) => {
+        const fileRef = ref(storage, `pokemon/${Date.now()}-${file.name}`);
+        await uploadBytes(fileRef, file);
+        return getDownloadURL(fileRef);
+      });
+      imageUrls = await Promise.all(uploadPromises);
     }
+
+    const mergedImages = [...(product.images || []), ...imageUrls];
+    const data: PokemonProduct = { ...product, images: mergedImages };
+
+    if ((data as any).id) {
+      const id = (data as any).id;
+      delete (data as any).id;
+      await updateDoc(doc(db, "pokemon", id), data);
+    } else {
+      await addDoc(collection(db, "pokemon"), data);
+    }
+
+    setProduct(initialProduct);
+    setImageFiles(null);
+    fetchProducts();
   };
 
-  const handleEdit = (item: PokemonProduct) => {
+  const handleEdit = (item: PokemonProduct & { id: string }) => {
     setProduct(item);
-    setEditingId(item.id!);
-    setImageFiles(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("Are you sure you want to delete this item?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteDoc(doc(db, "pokemon", id));
-      loadProducts();
-    } catch (err) {
-      console.error("Failed to delete:", err);
-    }
+    await deleteDoc(doc(db, "pokemon", id));
+    fetchProducts();
   };
+
+  const filtered = products.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = !statusFilter || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
-      {/* Left: Form */}
       <div className="w-full md:w-1/3">
         <form
           onSubmit={handleSubmit}
           className="bg-white p-6 rounded shadow-md w-full"
         >
-          <h2 className="text-xl font-bold mb-4">
-            {editingId ? "Edit Pokémon" : "Add Pokémon"}
-          </h2>
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Name"
+            value={product.name}
+            onChange={(e) => setProduct({ ...product, name: e.target.value })}
+            required
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Set"
+            value={product.set}
+            onChange={(e) => setProduct({ ...product, set: e.target.value })}
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Condition"
+            value={product.condition}
+            onChange={(e) =>
+              setProduct({ ...product, condition: e.target.value })
+            }
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Price"
+            type="number"
+            value={product.price}
+            onChange={(e) =>
+              setProduct({ ...product, price: parseFloat(e.target.value) })
+            }
+            required
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Purchase Price"
+            type="number"
+            value={product.purchasePrice}
+            onChange={(e) =>
+              setProduct({
+                ...product,
+                purchasePrice: parseFloat(e.target.value),
+              })
+            }
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Purchased From"
+            value={product.purchasedFrom}
+            onChange={(e) =>
+              setProduct({ ...product, purchasedFrom: e.target.value })
+            }
+          />
+          <select
+            className="mb-4 w-full border p-2"
+            value={product.status}
+            onChange={(e) => setProduct({ ...product, status: e.target.value })}
+          >
+            <option value="">Select Status</option>
+            {[
+              "Acquired",
+              "Inventory",
+              "Listed",
+              "Pending Sale",
+              "Sold",
+              "Archived",
+            ].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <textarea
+            className="mb-4 w-full border p-2"
+            placeholder="Notes"
+            value={product.notes}
+            onChange={(e) => setProduct({ ...product, notes: e.target.value })}
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Storage Bin"
+            value={product.location}
+            onChange={(e) =>
+              setProduct({ ...product, location: e.target.value })
+            }
+          />
+          <input
+            className="mb-4 w-full border p-2"
+            placeholder="Stripe Checkout Link"
+            value={product.stripeLink}
+            onChange={(e) =>
+              setProduct({ ...product, stripeLink: e.target.value })
+            }
+          />
+          <input
+            type="file"
+            multiple
+            onChange={(e) => setImageFiles(e.target.files)}
+            className="mb-4 w-full border p-2"
+          />
 
-          {[
-            { label: "Name", name: "name", type: "text", required: true },
-            { label: "Set", name: "set", type: "text" },
-            { label: "Condition", name: "condition", type: "text" },
-            {
-              label: "Price",
-              name: "price",
-              type: "number",
-              step: "0.01",
-              required: true,
-            },
-            {
-              label: "Purchase Price",
-              name: "purchasePrice",
-              type: "number",
-              step: "0.01",
-            },
-            { label: "Purchased From", name: "purchasedFrom", type: "text" },
-            { label: "Storage Bin", name: "location", type: "text" },
-            { label: "Stripe Checkout Link", name: "stripeLink", type: "url" },
-          ].map((field) => (
-            <div className="mb-4" key={field.name}>
-              <label className="block mb-1">{field.label}</label>
-              <input
-                {...field}
-                name={field.name}
-                value={product[field.name as keyof PokemonProduct] ?? ""}
-                onChange={handleChange}
-                className="w-full border p-2"
-              />
+          {product.images && product.images.length > 0 && (
+            <div className="mb-4">
+              <label className="block mb-1">Existing Images</label>
+              <div className="flex flex-wrap gap-2">
+                {product.images.map((url, idx) => (
+                  <div key={idx} className="relative w-20 h-20">
+                    <img
+                      src={url}
+                      className="object-cover w-full h-full rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProduct((prev) => ({
+                          ...prev,
+                          images: prev.images!.filter((_, i) => i !== idx),
+                        }))
+                      }
+                      className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-
-          <div className="mb-4">
-            <label className="block mb-1">Status</label>
-            <select
-              name="status"
-              value={product.status}
-              onChange={handleChange}
-              className="w-full border p-2"
-            >
-              <option value="">Select Status</option>
-              {[
-                "Acquired",
-                "Inventory",
-                "Listed",
-                "Pending Sale",
-                "Sold",
-                "Archived",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <label className="block mb-1">Notes</label>
-            <textarea
-              name="notes"
-              value={product.notes}
-              onChange={handleChange}
-              className="w-full border p-2"
-              rows={3}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block mb-1">Upload Images</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setImageFiles(e.target.files)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              {editingId ? "Update Pokémon" : "Save Pokémon"}
-            </button>
-
-            {editingId && (
-              <button
-                type="button"
-                className="bg-gray-400 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setEditingId(null);
-                  setProduct(defaultProduct);
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-
-          {statusMessage && (
-            <div className="mt-4 text-sm text-green-600">{statusMessage}</div>
           )}
+
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+            type="submit"
+          >
+            Save Pokémon
+          </button>
         </form>
       </div>
 
-      {/* Right: Filter + List */}
       <div className="w-full md:flex-1">
-        {/* Search and Filter */}
         <div className="flex flex-wrap gap-4 items-center mb-4">
           <input
             className="border p-2 w-full sm:w-auto flex-grow"
@@ -258,35 +250,26 @@ const PokemonForm = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">All Statuses</option>
-            {[
-              "Acquired",
-              "Inventory",
-              "Listed",
-              "Pending Sale",
-              "Sold",
-              "Archived",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            {["Inventory", "Listed", "Pending Sale", "Sold", "Archived"].map(
+              (s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              )
+            )}
           </select>
         </div>
-
-        {/* Product List */}
         <div className="grid gap-4">
-          {products.map((item) => (
+          {filtered.map((item) => (
             <ProductCard
               key={item.id}
               data={item}
               onEdit={() => handleEdit(item)}
-              onDelete={() => handleDelete(item.id!)}
+              onDelete={() => handleDelete(item.id)}
             />
           ))}
         </div>
       </div>
     </div>
   );
-};
-
-export default PokemonForm;
+}
