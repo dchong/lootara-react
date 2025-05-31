@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { db, storage } from "@/firebase";
 import {
   collection,
   getDocs,
@@ -9,264 +8,309 @@ import {
   doc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PokemonProduct } from "@/types";
-import ProductCard from "./ProductCard";
+import { db, storage } from "@/firebase";
+import { v4 as uuidv4 } from "uuid";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-const initialProduct: PokemonProduct = {
-  name: "",
-  set: "",
-  condition: "",
-  price: 0,
-  purchasePrice: 0,
-  purchasedFrom: "",
-  status: "",
-  notes: "",
-  location: "",
-  stripeLink: "",
-  images: [],
-};
+function SortableImage({ id, url, onRemove }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
 
-export default function PokemonForm() {
-  const [product, setProduct] = useState<PokemonProduct>(initialProduct);
-  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
-  const [products, setProducts] = useState<(PokemonProduct & { id: string })[]>(
-    []
-  );
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    const snapshot = await getDocs(collection(db, "pokemon"));
-    const data = snapshot.docs.map(
-      (doc) =>
-        ({ id: doc.id, ...doc.data() } as PokemonProduct & { id: string })
-    );
-    setProducts(data);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    let imageUrls: string[] = [];
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="relative w-24 h-24"
+    >
+      <img
+        src={url}
+        className="w-full h-full object-cover rounded cursor-move"
+        {...listeners} // Apply DnD to the image only
+      />
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent event from bubbling to drag listeners
+          onRemove(id);
+        }}
+        className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
 
-    if (imageFiles && imageFiles.length) {
-      const uploadPromises = Array.from(imageFiles).map(async (file) => {
-        const fileRef = ref(storage, `pokemon/${Date.now()}-${file.name}`);
-        await uploadBytes(fileRef, file);
-        return getDownloadURL(fileRef);
-      });
-      imageUrls = await Promise.all(uploadPromises);
+export default function PokemonForm() {
+  const [items, setItems] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    set: "",
+    condition: "",
+    price: "",
+    purchasePrice: "",
+    purchasedFrom: "",
+    status: "",
+    stripeLink: "",
+    notes: "",
+    location: "",
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [pokemonList, setPokemonList] = useState<any[]>([]);
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = items.findIndex((img) => img.id === active.id);
+      const newIndex = items.findIndex((img) => img.id === over.id);
+      setItems(arrayMove(items, oldIndex, newIndex));
     }
+  };
 
-    const mergedImages = [...(product.images || []), ...imageUrls];
-    const data: PokemonProduct = { ...product, images: mergedImages };
+  const handleImageUpload = async (e: any) => {
+    const files = e.target.files;
+    const uploaded = [];
+    for (const file of files) {
+      const imageId = uuidv4();
+      const imageRef = ref(storage, `pokemon/${imageId}`);
+      await uploadBytes(imageRef, file);
+      const url = await getDownloadURL(imageRef);
+      uploaded.push({ id: imageId, url });
+    }
+    setItems((prev) => [...prev, ...uploaded]);
+  };
 
-    if ((data as any).id) {
-      const id = (data as any).id;
-      delete (data as any).id;
-      await updateDoc(doc(db, "pokemon", id), data);
+  const handleImageRemove = (id: string) => {
+    console.log("clicked");
+    setItems((prev) => prev.filter((img) => img.id !== id));
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedData = Object.fromEntries(
+      Object.entries(formData).map(([k, v]) => [k, v ?? ""])
+    );
+
+    const data = {
+      ...trimmedData,
+      images: items.map((img) => img.url),
+    };
+
+    if (editingId) {
+      await updateDoc(doc(db, "pokemon", editingId), data);
     } else {
       await addDoc(collection(db, "pokemon"), data);
     }
 
-    setProduct(initialProduct);
-    setImageFiles(null);
-    fetchProducts();
+    await fetchItems(); // Refresh list before clearing
+    resetForm();
   };
 
-  const handleEdit = (item: PokemonProduct & { id: string }) => {
-    setProduct(item);
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      set: "",
+      condition: "",
+      price: "",
+      purchasePrice: "",
+      purchasedFrom: "",
+      status: "",
+      stripeLink: "",
+      notes: "",
+      location: "",
+    });
+    setItems([]);
+    setEditingId(null);
+  };
+
+  const fetchItems = async () => {
+    const snap = await getDocs(collection(db, "pokemon"));
+    setPokemonList(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const handleEdit = (item: any) => {
+    console.log("edit");
+    setFormData({
+      name: item.name || "",
+      set: item.set || "",
+      condition: item.condition || "",
+      price: item.price || "",
+      purchasePrice: item.purchasePrice || "",
+      purchasedFrom: item.purchasedFrom || "",
+      status: item.status || "",
+      stripeLink: item.stripeLink || "",
+      notes: item.notes || "",
+      location: item.location || "",
+    });
+    setItems((item.images || []).map((url: string) => ({ id: uuidv4(), url })));
+    setEditingId(item.id);
   };
 
   const handleDelete = async (id: string) => {
     await deleteDoc(doc(db, "pokemon", id));
-    fetchProducts();
+    fetchItems();
   };
 
-  const filtered = products.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !statusFilter || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      <div className="w-full md:w-1/3">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded shadow-md w-full"
-        >
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Name"
-            value={product.name}
-            onChange={(e) => setProduct({ ...product, name: e.target.value })}
-            required
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Set"
-            value={product.set}
-            onChange={(e) => setProduct({ ...product, set: e.target.value })}
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Condition"
-            value={product.condition}
-            onChange={(e) =>
-              setProduct({ ...product, condition: e.target.value })
-            }
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Price"
-            type="number"
-            value={product.price}
-            onChange={(e) =>
-              setProduct({ ...product, price: parseFloat(e.target.value) })
-            }
-            required
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Purchase Price"
-            type="number"
-            value={product.purchasePrice}
-            onChange={(e) =>
-              setProduct({
-                ...product,
-                purchasePrice: parseFloat(e.target.value),
-              })
-            }
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Purchased From"
-            value={product.purchasedFrom}
-            onChange={(e) =>
-              setProduct({ ...product, purchasedFrom: e.target.value })
-            }
-          />
-          <select
-            className="mb-4 w-full border p-2"
-            value={product.status}
-            onChange={(e) => setProduct({ ...product, status: e.target.value })}
-          >
-            <option value="">Select Status</option>
-            {[
-              "Acquired",
-              "Inventory",
-              "Listed",
-              "Pending Sale",
-              "Sold",
-              "Archived",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <textarea
-            className="mb-4 w-full border p-2"
-            placeholder="Notes"
-            value={product.notes}
-            onChange={(e) => setProduct({ ...product, notes: e.target.value })}
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Storage Bin"
-            value={product.location}
-            onChange={(e) =>
-              setProduct({ ...product, location: e.target.value })
-            }
-          />
-          <input
-            className="mb-4 w-full border p-2"
-            placeholder="Stripe Checkout Link"
-            value={product.stripeLink}
-            onChange={(e) =>
-              setProduct({ ...product, stripeLink: e.target.value })
-            }
-          />
+    <div className="flex gap-6">
+      <form
+        className="bg-white p-6 rounded shadow-md w-full md:w-1/3"
+        onSubmit={handleSubmit}
+      >
+        {Object.entries(formData).map(([key, value]) => (
+          <div className="mb-4" key={key}>
+            <label className="block mb-1 capitalize">{key}</label>
+            {key === "status" ? (
+              <select
+                name={key}
+                value={value}
+                onChange={handleChange}
+                className="w-full border p-2"
+              >
+                <option value="">Select Status</option>
+                {[
+                  "Acquired",
+                  "Inventory",
+                  "Listed",
+                  "Pending Sale",
+                  "Sold",
+                  "Archived",
+                ].map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            ) : key === "notes" ? (
+              <textarea
+                name={key}
+                value={value}
+                onChange={handleChange}
+                className="w-full border p-2"
+                rows={3}
+              />
+            ) : (
+              <input
+                name={key}
+                type={key.includes("price") ? "number" : "text"}
+                step="0.01"
+                value={value}
+                onChange={handleChange}
+                className="w-full border p-2"
+              />
+            )}
+          </div>
+        ))}
+
+        <div className="mb-4">
+          <label className="block mb-1">Upload Images</label>
           <input
             type="file"
             multiple
-            onChange={(e) => setImageFiles(e.target.files)}
-            className="mb-4 w-full border p-2"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="w-full border p-2"
           />
+        </div>
 
-          {product.images && product.images.length > 0 && (
-            <div className="mb-4">
-              <label className="block mb-1">Existing Images</label>
-              <div className="flex flex-wrap gap-2">
-                {product.images.map((url, idx) => (
-                  <div key={idx} className="relative w-20 h-20">
-                    <img
-                      src={url}
-                      className="object-cover w-full h-full rounded"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProduct((prev) => ({
-                          ...prev,
-                          images: prev.images!.filter((_, i) => i !== idx),
-                        }))
-                      }
-                      className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
-                    >
-                      ×
-                    </button>
-                  </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map((img) => img.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-wrap gap-2 mb-4">
+              {items.map((img) => (
+                <SortableImage
+                  key={img.id}
+                  id={img.id}
+                  url={img.url}
+                  onRemove={handleImageRemove}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          type="submit"
+        >
+          {editingId ? "Update" : "Save"} Pokemon
+        </button>
+      </form>
+
+      <div className="flex-1 min-w-0">
+        <h2 className="text-xl font-semibold mb-4">Pokemon List</h2>
+        <div className="space-y-4">
+          {pokemonList.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded shadow relative">
+              <h3 className="text-lg font-bold">{item.name}</h3>
+              <p className="text-sm text-gray-600">
+                Set: {item.set} | Condition: {item.condition}
+              </p>
+              <p className="text-sm">
+                Price: ${item.price} | Purchase: ${item.purchasePrice}
+              </p>
+              <p className="text-sm">Status: {item.status}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(item.images || []).map((url: string, index: number) => (
+                  <img
+                    key={index}
+                    src={url}
+                    className="w-16 h-16 object-cover rounded"
+                  />
                 ))}
               </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => handleEdit(item)}
+                  className="bg-yellow-500 text-white px-3 py-1 rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          )}
-
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-            type="submit"
-          >
-            Save Pokémon
-          </button>
-        </form>
-      </div>
-
-      <div className="w-full md:flex-1">
-        <div className="flex flex-wrap gap-4 items-center mb-4">
-          <input
-            className="border p-2 w-full sm:w-auto flex-grow"
-            type="text"
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="border p-2"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {["Inventory", "Listed", "Pending Sale", "Sold", "Archived"].map(
-              (s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              )
-            )}
-          </select>
-        </div>
-        <div className="grid gap-4">
-          {filtered.map((item) => (
-            <ProductCard
-              key={item.id}
-              data={item}
-              onEdit={() => handleEdit(item)}
-              onDelete={() => handleDelete(item.id)}
-            />
           ))}
         </div>
       </div>
