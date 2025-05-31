@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCRxeeIUMQUQ1H8RIKk5lXh77IQAGHhMe4",
   authDomain: "lootara-website.firebaseapp.com",
   projectId: "lootara-website",
-  storageBucket: "lootara-website.appspot.com",
+  storageBucket: "lootara-website.firebasestorage.app",
   messagingSenderId: "984923606768",
   appId: "1:984923606768:web:7d816b4c4dea60c6b7fc35",
   measurementId: "G-46CY0YCTW1",
