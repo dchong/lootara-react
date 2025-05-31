@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
-import PokemonCard from "../components/PokemonCard";
-import PokemonModal from "../components/Modal";
+import BearbrickCard from "../components/BearbrickCard";
+import BearbrickModal from "../components/Modal";
 
 const CARDS_PER_PAGE = 9;
 
-export default function PokemonStorefront() {
-  const [allCards, setAllCards] = useState<any[]>([]);
+export default function BearbrickStorefront() {
+  const [allBearbricks, setAllBearbricks] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalStartIndex, setModalStartIndex] = useState(0);
@@ -16,14 +16,17 @@ export default function PokemonStorefront() {
 
   const observer = useRef<IntersectionObserver | null>(null);
 
-  const filteredCards = allCards.filter(
-    (card) =>
-      card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (card.set && card.set.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredBearbricks = allBearbricks.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.set && item.set.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const totalPages = Math.ceil(filteredCards.length / CARDS_PER_PAGE);
-  const paginatedCards = filteredCards.slice(0, currentPage * CARDS_PER_PAGE);
+  const totalPages = Math.ceil(filteredBearbricks.length / CARDS_PER_PAGE);
+  const paginatedBearbricks = filteredBearbricks.slice(
+    0,
+    currentPage * CARDS_PER_PAGE
+  );
 
   const lastCardRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -38,16 +41,16 @@ export default function PokemonStorefront() {
     [currentPage, totalPages]
   );
 
-  const fetchCards = async () => {
-    const snap = await getDocs(collection(db, "pokemon"));
-    const listedCards = snap.docs
+  const fetchBearbricks = async () => {
+    const snap = await getDocs(collection(db, "bearbricks"));
+    const listed = snap.docs
       .map((doc) => doc.data())
-      .filter((card) => card.status === "Listed");
-    setAllCards(listedCards);
+      .filter((item) => item.status === "Listed");
+    setAllBearbricks(listed);
   };
 
   useEffect(() => {
-    fetchCards();
+    fetchBearbricks();
   }, []);
 
   const handleCardImageClick = (images: string[], index: number) => {
@@ -62,7 +65,7 @@ export default function PokemonStorefront() {
         <div className="flex flex-wrap gap-4 items-center mb-6">
           <input
             type="text"
-            placeholder="Search cards by name or set..."
+            placeholder="Search by name or set..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -82,16 +85,22 @@ export default function PokemonStorefront() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {paginatedCards.map((card, idx) => {
-            const isLast = idx === paginatedCards.length - 1;
+          {paginatedBearbricks.map((item, idx) => {
+            const isLast = idx === paginatedBearbricks.length - 1;
             return (
-              <div ref={isLast ? lastCardRef : null} key={idx}>
-                <PokemonCard
-                  card={card}
+              <div
+                ref={isLast ? lastCardRef : null}
+                key={idx}
+                className="flex flex-col"
+              >
+                <BearbrickCard
+                  card={item}
                   onImageClick={(index) =>
-                    handleCardImageClick(card.images || [], index)
+                    handleCardImageClick(item.images || [], index)
                   }
                 />
+                <p className="text-sm text-gray-600 italic mt-1">{item.set}</p>
+                <p className="text-sm text-gray-600 italic">{item.condition}</p>
               </div>
             );
           })}
@@ -99,7 +108,7 @@ export default function PokemonStorefront() {
       </div>
 
       {modalVisible && (
-        <PokemonModal
+        <BearbrickModal
           images={modalImages}
           startIndex={modalStartIndex}
           onClose={() => setModalVisible(false)}
