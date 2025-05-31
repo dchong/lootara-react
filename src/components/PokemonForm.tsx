@@ -43,12 +43,13 @@ function SortableImage({ id, url, onRemove }: any) {
     >
       <img
         src={url}
+        loading="lazy"
         className="w-full h-full object-cover rounded cursor-move"
-        {...listeners} // Apply DnD to the image only
+        {...listeners}
       />
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Prevent event from bubbling to drag listeners
+          e.stopPropagation();
           onRemove(id);
         }}
         className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1"
@@ -101,7 +102,6 @@ export default function PokemonForm() {
   };
 
   const handleImageRemove = (id: string) => {
-    console.log("clicked");
     setItems((prev) => prev.filter((img) => img.id !== id));
   };
 
@@ -131,7 +131,7 @@ export default function PokemonForm() {
       await addDoc(collection(db, "pokemon"), data);
     }
 
-    await fetchItems(); // Refresh list before clearing
+    await fetchItems();
     resetForm();
   };
 
@@ -158,7 +158,6 @@ export default function PokemonForm() {
   };
 
   const handleEdit = (item: any) => {
-    console.log("edit");
     setFormData({
       name: item.name || "",
       set: item.set || "",
@@ -292,6 +291,7 @@ export default function PokemonForm() {
                   <img
                     key={index}
                     src={url}
+                    loading="lazy"
                     className="w-16 h-16 object-cover rounded"
                   />
                 ))}
