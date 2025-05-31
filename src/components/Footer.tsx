@@ -21,7 +21,7 @@ const Footer: React.FC = () => {
               className="hover:text-blue-400 flex items-center space-x-2"
               rel="noreferrer"
             >
-              <i className="fab fa-facebook fa-lg"></i>
+              <i className="fab fa-facebook-f fa-lg"></i>
               <span>Facebook</span>
             </a>
             <a
