@@ -7,286 +7,311 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import { db } from "../firebase";
-import { uploadImages } from "../utils/uploadImages";
-import { PokemonProduct as BearbrickProduct } from "../types"; // Optionally rename in types later
-import ProductCard from "./ProductCard";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/firebase";
+import { v4 as uuidv4 } from "uuid";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-const defaultProduct: BearbrickProduct = {
-  name: "",
-  set: "",
-  condition: "",
-  price: 0,
-  purchasePrice: undefined,
-  purchasedFrom: "",
-  status: "",
-  notes: "",
-  location: "",
-  stripeLink: "",
-  images: [],
-};
+function SortableImage({ id, url, onRemove }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
 
-const BearbrickForm = () => {
-  const [product, setProduct] = useState<BearbrickProduct>(defaultProduct);
-  const [products, setProducts] = useState<BearbrickProduct[]>([]);
-  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-
-  const loadProducts = async () => {
-    const snapshot = await getDocs(collection(db, "bearbricks"));
-    const all = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as BearbrickProduct[];
-
-    const filtered = all.filter((item) => {
-      const matchName = item.name.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter ? item.status === statusFilter : true;
-      return matchName && matchStatus;
-    });
-
-    setProducts(filtered);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
-  useEffect(() => {
-    loadProducts();
-  }, [search, statusFilter]);
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="relative w-24 h-24"
+    >
+      <img
+        src={url}
+        className="w-full h-full object-cover rounded cursor-move"
+        {...listeners}
+      />
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(id);
+        }}
+        className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+export default function BearbrickForm() {
+  const [items, setItems] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    series: "",
+    size: "",
+    price: "",
+    purchasePrice: "",
+    purchasedFrom: "",
+    status: "",
+    stripeLink: "",
+    notes: "",
+    location: "",
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [bearbrickList, setBearbrickList] = useState<any[]>([]);
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = items.findIndex((img) => img.id === active.id);
+      const newIndex = items.findIndex((img) => img.id === over.id);
+      setItems(arrayMove(items, oldIndex, newIndex));
+    }
+  };
+
+  const handleImageUpload = async (e: any) => {
+    const files = e.target.files;
+    const uploaded = [];
+    for (const file of files) {
+      const imageId = uuidv4();
+      const imageRef = ref(storage, `bearbricks/${imageId}`);
+      await uploadBytes(imageRef, file);
+      const url = await getDownloadURL(imageRef);
+      uploaded.push({ id: imageId, url });
+    }
+    setItems((prev) => [...prev, ...uploaded]);
+  };
+
+  const handleImageRemove = (id: string) => {
+    setItems((prev) => prev.filter((img) => img.id !== id));
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
     const { name, value } = e.target;
-    setProduct((prev) => ({
-      ...prev,
-      [name]:
-        name === "price" || name === "purchasePrice"
-          ? parseFloat(value) || 0
-          : value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedData = Object.fromEntries(
+      Object.entries(formData).map(([k, v]) => [k, v ?? ""])
+    );
 
-    try {
-      let imageUrls: string[] = [];
-      if (imageFiles && imageFiles.length) {
-        imageUrls = await uploadImages(imageFiles, "bearbricks");
-      }
+    const data = {
+      ...trimmedData,
+      images: items.map((img) => img.url),
+    };
 
-      const data: BearbrickProduct = {
-        ...product,
-        images: imageUrls.length ? imageUrls : product.images,
-      };
-
-      if (editingId) {
-        await updateDoc(doc(db, "bearbricks", editingId), data);
-      } else {
-        await addDoc(collection(db, "bearbricks"), data);
-      }
-
-      setStatusMessage(
-        editingId ? "Updated successfully!" : "Saved successfully!"
-      );
-      setProduct(defaultProduct);
-      setImageFiles(null);
-      setEditingId(null);
-      loadProducts();
-    } catch (err) {
-      console.error(err);
-      setStatusMessage("Error saving product.");
+    if (editingId) {
+      await updateDoc(doc(db, "bearbricks", editingId), data);
+    } else {
+      await addDoc(collection(db, "bearbricks"), data);
     }
+
+    await fetchItems();
+    resetForm();
   };
 
-  const handleEdit = (item: BearbrickProduct) => {
-    setProduct(item);
-    setEditingId(item.id!);
-    setImageFiles(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      series: "",
+      size: "",
+      price: "",
+      purchasePrice: "",
+      purchasedFrom: "",
+      status: "",
+      stripeLink: "",
+      notes: "",
+      location: "",
+    });
+    setItems([]);
+    setEditingId(null);
+  };
+
+  const fetchItems = async () => {
+    const snap = await getDocs(collection(db, "bearbricks"));
+    setBearbrickList(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  const handleEdit = (item: any) => {
+    setFormData({
+      name: item.name || "",
+      series: item.series || "",
+      size: item.size || "",
+      price: item.price || "",
+      purchasePrice: item.purchasePrice || "",
+      purchasedFrom: item.purchasedFrom || "",
+      status: item.status || "",
+      stripeLink: item.stripeLink || "",
+      notes: item.notes || "",
+      location: item.location || "",
+    });
+    setItems((item.images || []).map((url: string) => ({ id: uuidv4(), url })));
+    setEditingId(item.id);
   };
 
   const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("Are you sure you want to delete this item?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteDoc(doc(db, "bearbricks", id));
-      loadProducts();
-    } catch (err) {
-      console.error("Failed to delete:", err);
-    }
+    await deleteDoc(doc(db, "bearbricks", id));
+    fetchItems();
   };
 
-  return (
-    <div className="flex flex-col md:flex-row gap-6">
-      {/* Left: Form */}
-      <div className="w-full md:w-1/3">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded shadow-md w-full"
-        >
-          <h2 className="text-xl font-bold mb-4">
-            {editingId ? "Edit Bearbrick" : "Add Bearbrick"}
-          </h2>
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
-          {[
-            { label: "Name", name: "name", type: "text", required: true },
-            { label: "Set", name: "set", type: "text" },
-            { label: "Condition", name: "condition", type: "text" },
-            {
-              label: "Price",
-              name: "price",
-              type: "number",
-              step: "0.01",
-              required: true,
-            },
-            {
-              label: "Purchase Price",
-              name: "purchasePrice",
-              type: "number",
-              step: "0.01",
-            },
-            { label: "Purchased From", name: "purchasedFrom", type: "text" },
-            { label: "Storage Bin", name: "location", type: "text" },
-            { label: "Stripe Checkout Link", name: "stripeLink", type: "url" },
-          ].map((field) => (
-            <div className="mb-4" key={field.name}>
-              <label className="block mb-1">{field.label}</label>
+  return (
+    <div className="flex gap-6">
+      <form
+        className="bg-white p-6 rounded shadow-md w-full md:w-1/3"
+        onSubmit={handleSubmit}
+      >
+        {Object.entries(formData).map(([key, value]) => (
+          <div className="mb-4" key={key}>
+            <label className="block mb-1 capitalize">{key}</label>
+            {key === "status" ? (
+              <select
+                name={key}
+                value={value}
+                onChange={handleChange}
+                className="w-full border p-2"
+              >
+                <option value="">Select Status</option>
+                {[
+                  "Acquired",
+                  "Inventory",
+                  "Listed",
+                  "Pending Sale",
+                  "Sold",
+                  "Archived",
+                ].map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            ) : key === "notes" ? (
+              <textarea
+                name={key}
+                value={value}
+                onChange={handleChange}
+                className="w-full border p-2"
+                rows={3}
+              />
+            ) : (
               <input
-                {...field}
-                name={field.name}
-                value={product[field.name as keyof BearbrickProduct] ?? ""}
+                name={key}
+                type={key.includes("price") ? "number" : "text"}
+                step="0.01"
+                value={value}
                 onChange={handleChange}
                 className="w-full border p-2"
               />
-            </div>
-          ))}
-
-          <div className="mb-4">
-            <label className="block mb-1">Status</label>
-            <select
-              name="status"
-              value={product.status}
-              onChange={handleChange}
-              className="w-full border p-2"
-            >
-              <option value="">Select Status</option>
-              {[
-                "Acquired",
-                "Inventory",
-                "Listed",
-                "Pending Sale",
-                "Sold",
-                "Archived",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <label className="block mb-1">Notes</label>
-            <textarea
-              name="notes"
-              value={product.notes}
-              onChange={handleChange}
-              className="w-full border p-2"
-              rows={3}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block mb-1">Upload Images</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setImageFiles(e.target.files)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              {editingId ? "Update Bearbrick" : "Save Bearbrick"}
-            </button>
-
-            {editingId && (
-              <button
-                type="button"
-                className="bg-gray-400 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setEditingId(null);
-                  setProduct(defaultProduct);
-                }}
-              >
-                Cancel
-              </button>
             )}
           </div>
+        ))}
 
-          {statusMessage && (
-            <div className="mt-4 text-sm text-green-600">{statusMessage}</div>
-          )}
-        </form>
-      </div>
-
-      {/* Right: Filter + List */}
-      <div className="w-full md:flex-1">
-        {/* Search and Filter */}
-        <div className="flex flex-wrap gap-4 items-center mb-4">
+        <div className="mb-4">
+          <label className="block mb-1">Upload Images</label>
           <input
-            className="border p-2 w-full sm:w-auto flex-grow"
-            type="text"
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="w-full border p-2"
           />
-          <select
-            className="border p-2"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {[
-              "Acquired",
-              "Inventory",
-              "Listed",
-              "Pending Sale",
-              "Sold",
-              "Archived",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
         </div>
 
-        {/* Product List */}
-        <div className="grid gap-4">
-          {products.map((item) => (
-            <ProductCard
-              key={item.id}
-              data={item}
-              onEdit={() => handleEdit(item)}
-              onDelete={() => handleDelete(item.id!)}
-            />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map((img) => img.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-wrap gap-2 mb-4">
+              {items.map((img) => (
+                <SortableImage
+                  key={img.id}
+                  id={img.id}
+                  url={img.url}
+                  onRemove={handleImageRemove}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          type="submit"
+        >
+          {editingId ? "Update" : "Save"} Bearbrick
+        </button>
+      </form>
+
+      <div className="flex-1 min-w-0">
+        <h2 className="text-xl font-semibold mb-4">Bearbrick List</h2>
+        <div className="space-y-4">
+          {bearbrickList.map((item) => (
+            <div key={item.id} className="bg-white p-4 rounded shadow relative">
+              <h3 className="text-lg font-bold">{item.name}</h3>
+              <p className="text-sm text-gray-600">
+                Series: {item.series} | Size: {item.size}
+              </p>
+              <p className="text-sm">
+                Price: ${item.price} | Purchase: ${item.purchasePrice}
+              </p>
+              <p className="text-sm">Status: {item.status}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(item.images || []).map((url: string, index: number) => (
+                  <img
+                    key={index}
+                    src={url}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => handleEdit(item)}
+                  className="bg-yellow-500 text-white px-3 py-1 rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       </div>
     </div>
   );
-};
-
-export default BearbrickForm;
+}
