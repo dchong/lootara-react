@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import PokemonForm from "../components/PokemonForm.tsx";
 import BearbrickForm from "../components/BearbrickForm";
-//import ProductCard from "../components/ProductCard";
+import ProductCard from "../components/ProductCard";
 
 const Admin = () => {
   useFirebaseAuth();
