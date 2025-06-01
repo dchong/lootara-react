@@ -90,7 +90,7 @@ export default function PokemonForm() {
 
   const handleImageUpload = async (e: any) => {
     const files = e.target.files;
-    const uploaded = [];
+    const uploaded: { id: string; url: string }[] = [];
     for (const file of files) {
       const imageId = uuidv4();
       const imageRef = ref(storage, `pokemon/${imageId}`);
