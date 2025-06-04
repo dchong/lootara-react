@@ -8,7 +8,7 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-10 h-20 bg-[#111111]">
       <div className="container mx-auto flex items-center h-full px-4">
-        <a href="/pokemon" className="flex items-center h-full mr-8">
+        <a href="#/pokemon" className="flex items-center h-full mr-8">
           <img
             src="/images/logo.png"
             alt="Lootara Logo"
@@ -16,13 +16,13 @@ const Header: React.FC = () => {
           />
         </a>
         <nav className="hidden sm:flex space-x-6 text-white" id="nav-links">
-          <a href="/pokemon" className="hover:text-blue-400">
+          <a href="#/pokemon" className="hover:text-blue-400">
             Pokémon
           </a>
-          <a href="/bearbricks" className="hover:text-blue-400">
+          <a href="#/bearbricks" className="hover:text-blue-400">
             Bearbricks
           </a>
-          <a href="/contacts" className="hover:text-blue-400">
+          <a href="#/contacts" className="hover:text-blue-400">
             Contacts
           </a>
         </nav>

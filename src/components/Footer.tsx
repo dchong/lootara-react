@@ -58,22 +58,22 @@ const Footer: React.FC = () => {
 
         {/* Site Links */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mt-6 text-sm text-gray-300">
-          <a href="/terms-and-condition" className="hover:underline">
+          <a href="#/terms-and-condition" className="hover:underline">
             Terms & Conditions
           </a>
-          <a href="/shipping-returns" className="hover:underline">
+          <a href="#/shipping-returns" className="hover:underline">
             Shipping & Returns
           </a>
-          <a href="/faqs" className="hover:underline">
+          <a href="#/faqs" className="hover:underline">
             FAQs
           </a>
-          <a href="/privacy" className="hover:underline">
+          <a href="#/privacy" className="hover:underline">
             Privacy Policy
           </a>
-          <a href="/about-us" className="hover:underline">
+          <a href="#/about-us" className="hover:underline">
             About Us
           </a>
-          <a href="/reviews" className="hover:underline">
+          <a href="#/reviews" className="hover:underline">
             Reviews
           </a>
         </div>
