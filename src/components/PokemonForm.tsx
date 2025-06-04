@@ -41,6 +41,8 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         stripeLink: product.stripeLink || "",
         notes: product.notes || "",
       });
+    } else {
+      resetForm();
     }
   }, [product]);
 
@@ -61,21 +63,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       await addDoc(collection(db, "pokemon"), formData);
     }
     if (onSubmit) onSubmit();
-    setFormData({
-      status: "",
-      name: "",
-      cardNumber: "",
-      set: "",
-      condition: "",
-      purchasePrice: "",
-      purchasedFrom: "",
-      purchaseDate: "",
-      price: "",
-      soldDate: "",
-      location: "",
-      stripeLink: "",
-      notes: "",
-    });
+    resetForm();
   };
 
   const resetForm = () => {
@@ -157,19 +145,20 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
           </div>
           <div>
             <label className="block mb-1 capitalize">condition</label>
-            <select
+            <input
+              list="conditionOptions"
               name="condition"
               value={formData.condition}
               onChange={handleChange}
               className="w-full border p-2"
-            >
-              <option value="">Select Condition</option>
-              <option value="Near Mint">Near Mint</option>
-              <option value="Lightly Played">Lightly Played</option>
-              <option value="Moderately Played">Moderately Played</option>
-              <option value="Heavily Played">Heavily Played</option>
-              <option value="Damaged">Damaged</option>
-            </select>
+            />
+            <datalist id="conditionOptions">
+              <option value="Near Mint" />
+              <option value="Lightly Played" />
+              <option value="Moderately Played" />
+              <option value="Heavily Played" />
+              <option value="Damaged" />
+            </datalist>
           </div>
           <div>
             <label className="block mb-1 capitalize">location</label>
