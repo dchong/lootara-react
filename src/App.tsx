@@ -1,7 +1,7 @@
 // src/App.tsx
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin"; // once you scaffold it
 import Pokemon from "./pages/Pokemon";

@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-} from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/firebase";
 import { v4 as uuidv4 } from "uuid";
@@ -75,7 +68,6 @@ export default function PokemonForm() {
     location: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pokemonList, setPokemonList] = useState<any[]>([]);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -131,7 +123,6 @@ export default function PokemonForm() {
       await addDoc(collection(db, "pokemon"), data);
     }
 
-    await fetchItems();
     resetForm();
   };
 
@@ -152,168 +143,93 @@ export default function PokemonForm() {
     setEditingId(null);
   };
 
-  const fetchItems = async () => {
-    const snap = await getDocs(collection(db, "pokemon"));
-    setPokemonList(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
-
-  const handleEdit = (item: any) => {
-    setFormData({
-      name: item.name || "",
-      set: item.set || "",
-      condition: item.condition || "",
-      price: item.price || "",
-      purchasePrice: item.purchasePrice || "",
-      purchasedFrom: item.purchasedFrom || "",
-      status: item.status || "",
-      stripeLink: item.stripeLink || "",
-      notes: item.notes || "",
-      location: item.location || "",
-    });
-    setItems((item.images || []).map((url: string) => ({ id: uuidv4(), url })));
-    setEditingId(item.id);
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteDoc(doc(db, "pokemon", id));
-    fetchItems();
-  };
-
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
   return (
-    <div className="flex gap-6">
-      <form
-        className="bg-white p-6 rounded shadow-md w-full md:w-1/3"
-        onSubmit={handleSubmit}
-      >
-        {Object.entries(formData).map(([key, value]) => (
-          <div className="mb-4" key={key}>
-            <label className="block mb-1 capitalize">{key}</label>
-            {key === "status" ? (
-              <select
-                name={key}
-                value={value}
-                onChange={handleChange}
-                className="w-full border p-2"
-              >
-                <option value="">Select Status</option>
-                {[
-                  "Acquired",
-                  "Inventory",
-                  "Listed",
-                  "Pending Sale",
-                  "Sold",
-                  "Archived",
-                ].map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            ) : key === "notes" ? (
-              <textarea
-                name={key}
-                value={value}
-                onChange={handleChange}
-                className="w-full border p-2"
-                rows={3}
-              />
-            ) : (
-              <input
-                name={key}
-                type={key.includes("price") ? "number" : "text"}
-                step="0.01"
-                value={value}
-                onChange={handleChange}
-                className="w-full border p-2"
-              />
-            )}
-          </div>
-        ))}
-
-        <div className="mb-4">
-          <label className="block mb-1">Upload Images</label>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="w-full border p-2"
-          />
-        </div>
-
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={items.map((img) => img.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="flex flex-wrap gap-2 mb-4">
-              {items.map((img) => (
-                <SortableImage
-                  key={img.id}
-                  id={img.id}
-                  url={img.url}
-                  onRemove={handleImageRemove}
-                />
+    <form
+      className="bg-white p-6 rounded shadow-md w-full md:w-1/2"
+      onSubmit={handleSubmit}
+    >
+      {Object.entries(formData).map(([key, value]) => (
+        <div className="mb-4" key={key}>
+          <label className="block mb-1 capitalize">{key}</label>
+          {key === "status" ? (
+            <select
+              name={key}
+              value={value}
+              onChange={handleChange}
+              className="w-full border p-2"
+            >
+              <option value="">Select Status</option>
+              {[
+                "Acquired",
+                "Inventory",
+                "Listed",
+                "Pending Sale",
+                "Sold",
+                "Archived",
+              ].map((status) => (
+                <option key={status}>{status}</option>
               ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-          type="submit"
-        >
-          {editingId ? "Update" : "Save"} Pokemon
-        </button>
-      </form>
-
-      <div className="flex-1 min-w-0">
-        <h2 className="text-xl font-semibold mb-4">Pokemon List</h2>
-        <div className="space-y-4">
-          {pokemonList.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded shadow relative">
-              <h3 className="text-lg font-bold">{item.name}</h3>
-              <p className="text-sm text-gray-600">
-                Set: {item.set} | Condition: {item.condition}
-              </p>
-              <p className="text-sm">
-                Price: ${item.price} | Purchase: ${item.purchasePrice}
-              </p>
-              <p className="text-sm">Status: {item.status}</p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {(item.images || []).map((url: string, index: number) => (
-                  <img
-                    key={index}
-                    src={url}
-                    loading="lazy"
-                    className="w-16 h-16 object-cover rounded"
-                  />
-                ))}
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => handleEdit(item)}
-                  className="bg-yellow-500 text-white px-3 py-1 rounded"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            </select>
+          ) : key === "notes" ? (
+            <textarea
+              name={key}
+              value={value}
+              onChange={handleChange}
+              className="w-full border p-2"
+              rows={3}
+            />
+          ) : (
+            <input
+              name={key}
+              type={key.includes("price") ? "number" : "text"}
+              step="0.01"
+              value={value}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          )}
         </div>
+      ))}
+
+      <div className="mb-4">
+        <label className="block mb-1">Upload Images</label>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="w-full border p-2"
+        />
       </div>
-    </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((img) => img.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-wrap gap-2 mb-4">
+            {items.map((img) => (
+              <SortableImage
+                key={img.id}
+                id={img.id}
+                url={img.url}
+                onRemove={handleImageRemove}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      <button
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+        type="submit"
+      >
+        {editingId ? "Update" : "Save"} Pokemon
+      </button>
+    </form>
   );
 }
