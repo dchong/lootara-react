@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc, query } from "firebase/firestore";
 import { db } from "@/firebase";
 import PokemonForm from "../components/PokemonForm";
 import BearbrickForm from "../components/BearbrickForm";
 import ProductCard from "../components/ProductCard";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 
 const Admin = () => {
   useFirebaseAuth();
@@ -14,6 +14,7 @@ const Admin = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -31,8 +32,7 @@ const Admin = () => {
   };
 
   const handleEdit = (item: any) => {
-    console.log("Edit", item);
-    // You can optionally pass editing data to the form
+    setEditingProduct(item);
   };
 
   const filtered = products.filter((item) => {
@@ -43,10 +43,14 @@ const Admin = () => {
     return matchSearch && matchStatus;
   });
 
+  const handleFormSubmit = () => {
+    fetchItems();
+    setEditingProduct(null);
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      {/* Tab Switcher */}
-      <div className="mb-4 flex space-x-4">
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6 flex space-x-4">
         <button
           onClick={() => setActiveTab("pokemon")}
           className={`px-4 py-2 rounded ${
@@ -67,45 +71,57 @@ const Admin = () => {
         </button>
       </div>
 
-      {/* Form Component */}
-      <div className="mb-8">
-        {activeTab === "pokemon" ? <PokemonForm /> : <BearbrickForm />}
-      </div>
+      <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+        <div className="w-full lg:w-1/2">
+          {activeTab === "pokemon" ? (
+            <PokemonForm
+              product={editingProduct}
+              onSubmit={handleFormSubmit}
+              additionalFields={["soldDate", "purchaseDate", "cardNumber"]}
+            />
+          ) : (
+            <BearbrickForm
+              product={editingProduct}
+              onSubmit={handleFormSubmit}
+            />
+          )}
+        </div>
 
-      {/* Filter + Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search by name..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/2"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/4"
-        >
-          <option value="all">All Statuses</option>
-          <option value="Acquired">Acquired</option>
-          <option value="Inventory">Inventory</option>
-          <option value="Listed">Listed</option>
-          <option value="Pending Sale">Pending Sale</option>
-          <option value="Sold">Sold</option>
-          <option value="Archived">Archived</option>
-        </select>
-      </div>
+        <div className="w-full lg:w-1/2 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/2"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/4"
+            >
+              <option value="all">All Statuses</option>
+              <option value="Acquired">Acquired</option>
+              <option value="Inventory">Inventory</option>
+              <option value="Listed">Listed</option>
+              <option value="Pending Sale">Pending Sale</option>
+              <option value="Sold">Sold</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
 
-      {/* Product List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((item) => (
-          <ProductCard
-            key={item.id}
-            data={item}
-            onEdit={() => handleEdit(item)}
-            onDelete={() => handleDelete(item.id)}
-          />
-        ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((item) => (
+              <ProductCard
+                key={item.id}
+                data={item}
+                onEdit={() => handleEdit(item)}
+                onDelete={() => handleDelete(item.id)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
