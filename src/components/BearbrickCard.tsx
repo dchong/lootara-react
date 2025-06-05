@@ -4,32 +4,38 @@ interface Props {
   data: BearbrickProduct;
   onEdit?: () => void;
   onDelete?: () => void;
-  isSelected?: boolean; // ← Add this
-  onSelect?: (id: string, checked: boolean) => void; // ← If you're using it
 }
 
 const BearbrickCard = ({ data, onEdit, onDelete }: Props) => {
   return (
-    <div className="bg-white p-4 rounded shadow">
-      <h3 className="font-bold text-lg">{data.name}</h3>
-      <p className="text-sm text-gray-600">Status: {data.status}</p>
-      <p className="text-sm text-gray-600">Set: {data.series || "—"}</p>
-      <p className="text-sm text-gray-600">
-        Condition: {data.condition || "—"}
-      </p>
-      <p className="text-sm">List Price: ${data.price}</p>
-      <p className="text-sm">Purchase: ${data.purchasePrice || 0}</p>
-      <p className="text-sm">Storage Bin: {data.location || "—"}</p>
-      <p className="text-sm">Notes: {data.notes || "—"}</p>
+    <div className="bg-white p-4 rounded shadow flex flex-col h-full min-h-[340px]">
+      <div className="flex flex-col flex-grow">
+        <h3 className="font-bold text-lg mb-1">{data.name}</h3>
+        <p className="text-sm text-gray-600">
+          Series: {data.series || "—"} | Size: {data.size || "—"}
+        </p>
+        <p className="text-sm">
+          Price: ${data.price} | Purchase: ${data.purchasePrice || 0} | Status:{" "}
+          {data.status}
+        </p>
+        <p className="text-sm">Storage Bin: {data.location || "—"}</p>
+        <p className="text-sm">Purchased From: {data.purchasedFrom || "—"}</p>
+        <p className="text-sm">Notes: {data.notes || "—"}</p>
 
-      <div className="flex flex-wrap gap-2 mt-2">
-        {(data.images || []).map((img, idx) => (
-          <img key={idx} src={img} className="w-20 h-20 object-cover rounded" />
-        ))}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {(data.images || []).map((img, idx) => (
+            <img
+              key={idx}
+              src={img}
+              className="w-20 h-20 object-cover rounded"
+              loading="lazy"
+            />
+          ))}
+        </div>
       </div>
 
       {(onEdit || onDelete) && (
-        <div className="mt-4 flex gap-2">
+        <div className="mt-auto pt-4 flex gap-2">
           {onEdit && (
             <button
               className="bg-yellow-500 text-white px-3 py-1 rounded"
