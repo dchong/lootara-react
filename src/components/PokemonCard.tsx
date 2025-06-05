@@ -1,7 +1,9 @@
+// Updated PokemonCard.tsx
 import { useState } from "react";
 import { PokemonProduct } from "../types";
 import DetailModal from "./DetailModal";
 import { StatusBgClass } from "@/helper";
+
 interface Props {
   data: PokemonProduct;
   onEdit?: () => void;
@@ -32,15 +34,17 @@ const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
           <p className="text-sm">Purchased From: {data.purchasedFrom || "—"}</p>
           <p className="text-sm line-clamp-2">Notes: {data.notes || "—"}</p>
 
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(data.images || []).map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                className="w-20 h-20 object-cover rounded"
-                loading="lazy"
-              />
-            ))}
+          <div className="overflow-x-auto mt-2">
+            <div className="flex gap-2 w-max">
+              {(data.images || []).map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  className="w-20 h-20 object-cover rounded flex-shrink-0"
+                  loading="lazy"
+                />
+              ))}
+            </div>
           </div>
         </div>
 
