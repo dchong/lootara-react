@@ -99,8 +99,6 @@ export default function BearbrickStorefront() {
                     handleCardImageClick(item.images || [], index)
                   }
                 />
-                <p className="text-sm text-gray-600 italic mt-1">{item.set}</p>
-                <p className="text-sm text-gray-600 italic">{item.condition}</p>
               </div>
             );
           })}
