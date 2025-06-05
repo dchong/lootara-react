@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
-import BearbrickCard from "../components/BearbrickCard";
+import BearbrickStorefrontCard from "../components/BearbrickStorefrontCard";
 import BearbrickModal from "../components/Modal";
 
 const CARDS_PER_PAGE = 9;
@@ -93,7 +93,7 @@ export default function BearbrickStorefront() {
                 key={idx}
                 className="flex flex-col"
               >
-                <BearbrickCard
+                <BearbrickStorefrontCard
                   card={item}
                   onImageClick={(index) =>
                     handleCardImageClick(item.images || [], index)
