@@ -1,14 +1,30 @@
-import { PokemonProduct } from "../types";
-
 interface Props {
-  data: PokemonProduct;
+  data: any; // You can tighten this to PokemonProduct if you're sure
   onEdit?: () => void;
   onDelete?: () => void;
+  isSelected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
-const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
+const PokemonCard = ({
+  data = {},
+  onEdit,
+  onDelete,
+  isSelected = false,
+  onSelect,
+}: Props) => {
+  const images = Array.isArray(data.images) ? data.images : [];
+
   return (
-    <div className="bg-white p-4 rounded shadow">
+    <div className="bg-white p-4 rounded shadow relative">
+      {onSelect && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelect(data.id, e.target.checked)}
+          className="absolute top-2 right-2"
+        />
+      )}
       <h3 className="font-bold text-lg">{data.name}</h3>
       <p className="text-sm text-gray-600">Status: {data.status}</p>
       <p className="text-sm text-gray-600">Set: {data.set || "—"}</p>
@@ -21,7 +37,7 @@ const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
       <p className="text-sm">Notes: {data.notes || "—"}</p>
 
       <div className="flex flex-wrap gap-2 mt-2">
-        {(data.images || []).map((img, idx) => (
+        {images.map((img: string, idx: number) => (
           <img key={idx} src={img} className="w-20 h-20 object-cover rounded" />
         ))}
       </div>
