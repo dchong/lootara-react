@@ -4,6 +4,8 @@ import { db } from "@/firebase";
 import PokemonForm from "../components/PokemonForm";
 import BearbrickForm from "../components/BearbrickForm";
 import ProductCard from "../components/ProductCard";
+import PokemonCard from "../components/PokemonCard";
+import BearbrickCard from "../components/BearbrickCard";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 
 const Admin = () => {
@@ -112,14 +114,23 @@ const Admin = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((item) => (
-              <ProductCard
-                key={item.id}
-                data={item}
-                onEdit={() => handleEdit(item)}
-                onDelete={() => handleDelete(item.id)}
-              />
-            ))}
+            {filtered.map((item) =>
+              activeTab === "pokemon" ? (
+                <PokemonCard
+                  key={item.id}
+                  data={item}
+                  onEdit={() => handleEdit(item)}
+                  onDelete={() => handleDelete(item.id)}
+                />
+              ) : (
+                <BearbrickCard
+                  key={item.id}
+                  data={item}
+                  onEdit={() => handleEdit(item)}
+                  onDelete={() => handleDelete(item.id)}
+                />
+              )
+            )}
           </div>
         </div>
       </div>
