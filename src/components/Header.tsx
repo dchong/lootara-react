@@ -1,12 +1,11 @@
 // src/components/Header.tsx
 import { useState } from "react";
-import { Link } from "react-router-dom"; // Or use <a> if not using React Router
 
 const Header: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-10 h-20 bg-[#111111]">
+    <header className="sticky top-0 z-50 h-20 bg-[#111111]">
       <div className="container mx-auto flex items-center h-full px-4">
         <a href="#/pokemon" className="flex items-center h-full mr-8">
           <img
