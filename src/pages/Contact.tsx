@@ -10,7 +10,7 @@ export default function ContactPage() {
         </h1>
         <form
           className="space-y-6"
-          action="https://formspree.io/f/{your-form-id}"
+          action="https://formspree.io/f/mkgbwage"
           method="POST"
         >
           <div>
