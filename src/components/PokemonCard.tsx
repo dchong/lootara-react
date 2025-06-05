@@ -1,5 +1,9 @@
+import { useState } from "react";
+import { PokemonProduct } from "@/types";
+import Modal from "./Modal"; // Make sure the path is correct
+
 interface Props {
-  data: any; // You can tighten this to PokemonProduct if you're sure
+  data: PokemonProduct;
   onEdit?: () => void;
   onDelete?: () => void;
   isSelected?: boolean;
@@ -7,13 +11,21 @@ interface Props {
 }
 
 const PokemonCard = ({
-  data = {},
+  data,
   onEdit,
   onDelete,
   isSelected = false,
   onSelect,
 }: Props) => {
   const images = Array.isArray(data.images) ? data.images : [];
+
+  const [showModal, setShowModal] = useState(false);
+  const [modalStartIndex, setModalStartIndex] = useState(0);
+
+  const handleImageClick = (index: number) => {
+    setModalStartIndex(index);
+    setShowModal(true);
+  };
 
   return (
     <div className="bg-white p-4 rounded shadow relative">
@@ -38,7 +50,12 @@ const PokemonCard = ({
 
       <div className="flex flex-wrap gap-2 mt-2">
         {images.map((img: string, idx: number) => (
-          <img key={idx} src={img} className="w-20 h-20 object-cover rounded" />
+          <img
+            key={idx}
+            src={img}
+            onClick={() => handleImageClick(idx)}
+            className="w-20 h-20 object-cover rounded cursor-pointer hover:scale-105 transition"
+          />
         ))}
       </div>
 
@@ -61,6 +78,14 @@ const PokemonCard = ({
             </button>
           )}
         </div>
+      )}
+
+      {showModal && (
+        <Modal
+          images={images}
+          startIndex={modalStartIndex}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </div>
   );

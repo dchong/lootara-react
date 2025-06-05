@@ -1,5 +1,5 @@
 export type PokemonProduct = {
-  id?: string;
+  id: string;
   status: string;
   name: string;
   cardNumber: string;
@@ -18,7 +18,7 @@ export type PokemonProduct = {
 };
 
 export type BearbrickProduct = {
-  id?: string;
+  id: string;
   status: string;
   name: string;
   size?: string;
