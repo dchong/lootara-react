@@ -3,6 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
 import PokemonCard from "./PokemonCard";
 import BearbrickCard from "./BearbrickCard";
+import { BearbrickProduct, PokemonProduct } from "@/types";
 
 interface Props {
   selectedIds: string[];
@@ -24,11 +25,19 @@ export default function AcquiredView({
     ]);
 
     const pokemon = pokemonSnap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data(), type: "pokemon" }))
+      .map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as PokemonProduct),
+        type: "pokemon",
+      }))
       .filter((item) => item.status === "Acquired");
 
     const bearbricks = bearbrickSnap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data(), type: "bearbrick" }))
+      .map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as BearbrickProduct),
+        type: "bearbrick",
+      }))
       .filter((item) => item.status === "Acquired");
 
     setAcquiredItems([...pokemon, ...bearbricks]);
