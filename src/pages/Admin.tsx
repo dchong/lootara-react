@@ -6,6 +6,8 @@ import {
   doc,
   query,
   updateDoc,
+  where,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "@/firebase";
 import PokemonForm from "../components/PokemonForm";
@@ -24,41 +26,50 @@ const Admin = () => {
   const [products, setProducts] = useState<BaseProduct[]>([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [editingProduct, setEditingProduct] = useState<BaseProduct | null>(
     null
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const fetchItems = useCallback(async () => {
     if (activeTab === "acquired") return;
 
-    const col = collection(db, activeTab);
-    const snap = await getDocs(query(col));
+    const colRef = collection(db, activeTab);
+    const q = includeArchived
+      ? query(colRef, orderBy("name"))
+      : query(colRef, where("status", "!=", "Archived"), orderBy("status"));
+
+    const snap = await getDocs(q);
 
     if (activeTab === "pokemon") {
-      const pokemon = snap.docs.map((doc) => ({
+      const pokemon: PokemonProduct[] = snap.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<PokemonProduct, "id" | "type">),
-        type: "pokemon" as const,
+        type: "pokemon",
       }));
       setProducts(pokemon);
-    }
-
-    if (activeTab === "bearbricks") {
-      const bearbricks = snap.docs.map((doc) => ({
+    } else if (activeTab === "bearbricks") {
+      const bearbricks: BearbrickProduct[] = snap.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<BearbrickProduct, "id" | "type">),
-        type: "bearbrick" as const,
+        type: "bearbrick",
       }));
       setProducts(bearbricks);
     }
-  }, [activeTab]);
+  }, [activeTab, includeArchived]);
 
   useEffect(() => {
     if (activeTab !== "acquired") {
       fetchItems();
     }
   }, [activeTab, fetchItems]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, statusFilter, includeArchived]);
 
   const handleDelete = async (id: string) => {
     await deleteDoc(doc(db, activeTab, id));
@@ -112,6 +123,12 @@ const Admin = () => {
     const matchStatus = statusFilter === "all" || item.status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   function isPokemonProduct(product: BaseProduct): product is PokemonProduct {
     return product.type === "pokemon";
@@ -196,10 +213,18 @@ const Admin = () => {
                 <option value="Sold">Sold</option>
                 <option value="Archived">Archived</option>
               </select>
+              <label className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={includeArchived}
+                  onChange={() => setIncludeArchived((prev) => !prev)}
+                />
+                <span>Show Archived</span>
+              </label>
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-              {filtered.map((item) => {
+              {paginated.map((item) => {
                 if (isPokemon && isPokemonProduct(item)) {
                   return (
                     <PokemonCard
@@ -222,6 +247,28 @@ const Admin = () => {
                 }
                 return null;
               })}
+            </div>
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Prev
+              </button>
+              <span className="text-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           </div>
         )}
