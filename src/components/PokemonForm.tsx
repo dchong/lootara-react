@@ -245,19 +245,34 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       <div>
         <h2 className="text-lg font-semibold mb-2">Card Info</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(["name", "cardNumber", "set", "condition"] as const).map(
-            (field) => (
-              <div key={field}>
-                <label className="block mb-1 capitalize">{field}</label>
-                <input
-                  name={field}
-                  value={getDisplayValue(field)}
-                  onChange={handleChange}
-                  className="w-full border p-2"
-                />
-              </div>
-            )
-          )}
+          {(["name", "cardNumber", "set"] as const).map((field) => (
+            <div key={field}>
+              <label className="block mb-1 capitalize">{field}</label>
+              <input
+                name={field}
+                value={getDisplayValue(field)}
+                onChange={handleChange}
+                className="w-full border p-2"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="block mb-1 capitalize">condition</label>
+            <input
+              list="conditionOptions"
+              name="condition"
+              value={formData.condition}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+            <datalist id="conditionOptions">
+              <option value="Near Mint" />
+              <option value="Lightly Played" />
+              <option value="Moderately Played" />
+              <option value="Heavily Played" />
+              <option value="Damaged" />
+            </datalist>
+          </div>
         </div>
       </div>
 
