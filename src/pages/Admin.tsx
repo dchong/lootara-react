@@ -3,7 +3,6 @@ import { collection, getDocs, deleteDoc, doc, query } from "firebase/firestore";
 import { db } from "@/firebase";
 import PokemonForm from "../components/PokemonForm";
 import BearbrickForm from "../components/BearbrickForm";
-import ProductCard from "../components/ProductCard";
 import PokemonCard from "../components/PokemonCard";
 import BearbrickCard from "../components/BearbrickCard";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
