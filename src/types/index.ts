@@ -1,4 +1,4 @@
-export interface PokemonProduct {
+export type PokemonProduct = {
   id?: string;
   status: string;
   name: string;
@@ -14,14 +14,15 @@ export interface PokemonProduct {
   stripeLink?: string;
   notes?: string;
   images?: string[];
-}
+  type: "pokemon";
+};
 
-export interface BearbrickProduct {
+export type BearbrickProduct = {
   id?: string;
   status: string;
   name: string;
-  size: string;
-  series: string;
+  size?: string;
+  series?: string;
   condition?: string;
   location?: string;
   purchasePrice?: number;
@@ -32,4 +33,7 @@ export interface BearbrickProduct {
   stripeLink?: string;
   notes?: string;
   images?: string[];
-}
+  type: "bearbrick";
+};
+
+export type BaseProduct = PokemonProduct | BearbrickProduct;

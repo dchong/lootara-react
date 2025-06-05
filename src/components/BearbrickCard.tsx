@@ -4,6 +4,8 @@ interface Props {
   data: BearbrickProduct;
   onEdit?: () => void;
   onDelete?: () => void;
+  isSelected?: boolean; // ← Add this
+  onSelect?: (id: string, checked: boolean) => void; // ← If you're using it
 }
 
 const BearbrickCard = ({ data, onEdit, onDelete }: Props) => {

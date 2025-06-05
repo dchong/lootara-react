@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -14,36 +14,58 @@ import PokemonCard from "../components/PokemonCard";
 import BearbrickCard from "../components/BearbrickCard";
 import AcquiredView from "../components/AcquiredView";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { BaseProduct, PokemonProduct, BearbrickProduct } from "@/types";
 
 const Admin = () => {
   useFirebaseAuth();
   const [activeTab, setActiveTab] = useState<
     "pokemon" | "bearbricks" | "acquired"
   >("pokemon");
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<BaseProduct[]>([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingProduct, setEditingProduct] = useState<BaseProduct | null>(
+    null
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const fetchItems = useCallback(async () => {
+    if (activeTab === "acquired") return;
+
+    const col = collection(db, activeTab);
+    const snap = await getDocs(query(col));
+
+    if (activeTab === "pokemon") {
+      const pokemon = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<PokemonProduct, "id" | "type">),
+        type: "pokemon" as const,
+      }));
+      setProducts(pokemon);
+    }
+
+    if (activeTab === "bearbricks") {
+      const bearbricks = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<BearbrickProduct, "id" | "type">),
+        type: "bearbrick" as const,
+      }));
+      setProducts(bearbricks);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "acquired") {
       fetchItems();
     }
-  }, [activeTab]);
-
-  const fetchItems = async () => {
-    const col = collection(db, activeTab);
-    const snap = await getDocs(query(col));
-    setProducts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  };
+  }, [activeTab, fetchItems]);
 
   const handleDelete = async (id: string) => {
     await deleteDoc(doc(db, activeTab, id));
     fetchItems();
   };
 
-  const handleEdit = (item: any) => {
+  const handleEdit = (item: BaseProduct) => {
     setEditingProduct(item);
   };
 
@@ -91,6 +113,16 @@ const Admin = () => {
     return matchSearch && matchStatus;
   });
 
+  function isPokemonProduct(product: BaseProduct): product is PokemonProduct {
+    return product.type === "pokemon";
+  }
+
+  function isBearbrickProduct(
+    product: BaseProduct
+  ): product is BearbrickProduct {
+    return product.type === "bearbrick";
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6 flex space-x-4">
@@ -123,11 +155,7 @@ const Admin = () => {
       <div className="flex flex-col lg:flex-row lg:items-start gap-8">
         <div className="w-full lg:w-1/2">
           {isPokemon && (
-            <PokemonForm
-              product={editingProduct}
-              onSubmit={handleFormSubmit}
-              additionalFields={["soldDate", "purchaseDate", "cardNumber"]}
-            />
+            <PokemonForm product={editingProduct} onSubmit={handleFormSubmit} />
           )}
           {isBearbrick && (
             <BearbrickForm
@@ -172,23 +200,23 @@ const Admin = () => {
 
             <div className="grid grid-cols-1 gap-6">
               {filtered.map((item) => {
-                if (isPokemon) {
+                if (isPokemon && isPokemonProduct(item)) {
                   return (
                     <PokemonCard
                       key={item.id}
                       data={item}
                       onEdit={() => handleEdit(item)}
-                      onDelete={() => handleDelete(item.id)}
+                      onDelete={() => handleDelete(item.id ?? "")}
                     />
                   );
                 }
-                if (isBearbrick) {
+                if (isBearbrick && isBearbrickProduct(item)) {
                   return (
                     <BearbrickCard
                       key={item.id}
                       data={item}
                       onEdit={() => handleEdit(item)}
-                      onDelete={() => handleDelete(item.id)}
+                      onDelete={() => handleDelete(item.id ?? "")}
                     />
                   );
                 }

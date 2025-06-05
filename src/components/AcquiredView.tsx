@@ -3,7 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/firebase";
 import PokemonCard from "./PokemonCard";
 import BearbrickCard from "./BearbrickCard";
-import { BearbrickProduct, PokemonProduct } from "@/types";
+import { BaseProduct, BearbrickProduct, PokemonProduct } from "@/types";
 
 interface Props {
   selectedIds: string[];
@@ -16,7 +16,7 @@ export default function AcquiredView({
   onSelect,
   onBulkUpdate,
 }: Props) {
-  const [acquiredItems, setAcquiredItems] = useState<any[]>([]);
+  const [acquiredItems, setAcquiredItems] = useState<BaseProduct[]>([]);
 
   const fetchAcquired = async () => {
     const [pokemonSnap, bearbrickSnap] = await Promise.all([
@@ -27,16 +27,16 @@ export default function AcquiredView({
     const pokemon = pokemonSnap.docs
       .map((doc) => ({
         id: doc.id,
-        ...(doc.data() as PokemonProduct),
-        type: "pokemon",
+        ...(doc.data() as Omit<PokemonProduct, "id" | "type">),
+        type: "pokemon" as const,
       }))
       .filter((item) => item.status === "Acquired");
 
     const bearbricks = bearbrickSnap.docs
       .map((doc) => ({
         id: doc.id,
-        ...(doc.data() as BearbrickProduct),
-        type: "bearbrick",
+        ...(doc.data() as Omit<BearbrickProduct, "id" | "type">),
+        type: "bearbrick" as const,
       }))
       .filter((item) => item.status === "Acquired");
 
@@ -81,7 +81,7 @@ export default function AcquiredView({
             <PokemonCard
               key={item.id}
               data={item}
-              isSelected={selectedIds.includes(item.id)}
+              isSelected={selectedIds.includes(item.id ?? "")}
               onSelect={onSelect}
             />
           );
@@ -90,7 +90,7 @@ export default function AcquiredView({
             <BearbrickCard
               key={item.id}
               data={item}
-              isSelected={selectedIds.includes(item.id)}
+              isSelected={selectedIds.includes(item.id ?? "")}
               onSelect={onSelect}
             />
           );
