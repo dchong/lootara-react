@@ -9,6 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -17,13 +18,27 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { PokemonProduct } from "../types";
 
 interface PokemonFormProps {
-  product?: any;
+  product?: PokemonProduct;
   onSubmit?: () => void;
 }
 
-function SortableImage({ id, url, onRemove }: any) {
+interface ImageItem {
+  id: string;
+  url: string;
+}
+
+function SortableImage({
+  id,
+  url,
+  onRemove,
+}: {
+  id: string;
+  url: string;
+  onRemove: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
 
@@ -59,44 +74,63 @@ function SortableImage({ id, url, onRemove }: any) {
 }
 
 const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
-  const [items, setItems] = useState<any[]>([]);
   const sensors = useSensors(useSensor(PointerSensor));
-  const [formData, setFormData] = useState({
+  const [items, setItems] = useState<ImageItem[]>([]);
+
+  const [formData, setFormData] = useState<
+    Omit<PokemonProduct, "id" | "images" | "type">
+  >({
     status: "",
     name: "",
     cardNumber: "",
     set: "",
     condition: "",
-    purchasePrice: "",
-    purchasedFrom: "",
-    purchaseDate: "",
-    price: "",
-    soldDate: "",
     location: "",
+    purchasePrice: undefined,
+    purchasedFrom: "",
+    purchaseDate: undefined,
+    price: undefined,
+    soldDate: undefined,
     stripeLink: "",
     notes: "",
   });
 
   useEffect(() => {
     if (product) {
+      const {
+        status,
+        name,
+        cardNumber,
+        set,
+        condition,
+        location,
+        purchasePrice,
+        purchasedFrom,
+        purchaseDate,
+        price,
+        soldDate,
+        stripeLink,
+        notes,
+        images,
+      } = product;
+
       setFormData({
-        status: product.status || "",
-        name: product.name || "",
-        cardNumber: product.cardNumber || "",
-        set: product.set || "",
-        condition: product.condition || "",
-        purchasePrice: product.purchasePrice || "",
-        purchasedFrom: product.purchasedFrom || "",
-        purchaseDate: product.purchaseDate || "",
-        price: product.price || "",
-        soldDate: product.soldDate || "",
-        location: product.location || "",
-        stripeLink: product.stripeLink || "",
-        notes: product.notes || "",
+        status,
+        name,
+        cardNumber,
+        set,
+        condition,
+        location,
+        purchasePrice,
+        purchasedFrom,
+        purchaseDate,
+        price,
+        soldDate,
+        stripeLink,
+        notes,
       });
-      setItems(
-        (product.images || []).map((url: string) => ({ id: uuidv4(), url }))
-      );
+
+      setItems((images || []).map((url) => ({ id: uuidv4(), url })));
     } else {
       resetForm();
     }
@@ -108,22 +142,31 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
     >
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name.includes("Date")
+        ? value
+          ? new Date(value)
+          : undefined
+        : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = {
+      ...formData,
+      images: items.map((img) => img.url),
+      type: "pokemon" as const,
+    };
+
     if (product?.id) {
-      await updateDoc(doc(db, "pokemon", product.id), {
-        ...formData,
-        images: items.map((img) => img.url),
-      });
+      await updateDoc(doc(db, "pokemon", product.id), payload);
     } else {
-      await addDoc(collection(db, "pokemon"), {
-        ...formData,
-        images: items.map((img) => img.url),
-      });
+      await addDoc(collection(db, "pokemon"), payload);
     }
+
     if (onSubmit) onSubmit();
     resetForm();
   };
@@ -135,16 +178,52 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       cardNumber: "",
       set: "",
       condition: "",
-      purchasePrice: "",
-      purchasedFrom: "",
-      purchaseDate: "",
-      price: "",
-      soldDate: "",
       location: "",
+      purchasePrice: undefined,
+      purchasedFrom: "",
+      purchaseDate: undefined,
+      price: undefined,
+      soldDate: undefined,
       stripeLink: "",
       notes: "",
     });
     setItems([]);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const uploaded: ImageItem[] = [];
+
+    for (const file of Array.from(files)) {
+      const imageId = uuidv4();
+      const imageRef = ref(storage, `pokemon/${imageId}`);
+      await uploadBytes(imageRef, file);
+      const url = await getDownloadURL(imageRef);
+      uploaded.push({ id: imageId, url });
+    }
+
+    setItems((prev) => [...prev, ...uploaded]);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = items.findIndex((img) => img.id === active.id);
+      const newIndex = items.findIndex((img) => img.id === over?.id);
+      setItems(arrayMove(items, oldIndex, newIndex));
+    }
+  };
+
+  const getDisplayValue = (key: keyof typeof formData): string | number => {
+    const value = formData[key];
+
+    if (value instanceof Date) {
+      return value.toISOString().split("T")[0]; // YYYY-MM-DD
+    }
+
+    return value ?? "";
   };
 
   return (
@@ -152,171 +231,75 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       onSubmit={handleSubmit}
       className="bg-white p-6 rounded shadow space-y-6"
     >
-      <div>
-        <h2 className="text-lg font-semibold mb-2">General Info</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 capitalize">status</label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="w-full border p-2"
-            >
-              <option value="">Select Status</option>
-              <option value="Acquired">Acquired</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Personal">Personal Collection</option>
-              <option value="Listed">Listed</option>
-              <option value="Sold">Sold</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Archived">Archived</option>
-            </select>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          {
+            name: "status",
+            type: "select",
+            options: [
+              "Acquired",
+              "Inventory",
+              "Personal",
+              "Listed",
+              "Sold",
+              "Shipped",
+              "Archived",
+            ],
+          },
+          { name: "name", type: "text" },
+          { name: "cardNumber", type: "text" },
+          { name: "set", type: "text" },
+          { name: "condition", type: "text" },
+          { name: "location", type: "text" },
+          { name: "purchasePrice", type: "number" },
+          { name: "purchasedFrom", type: "text" },
+          { name: "purchaseDate", type: "date" },
+          { name: "price", type: "number" },
+          { name: "soldDate", type: "date" },
+          { name: "stripeLink", type: "text" },
+        ].map((field) => {
+          const key = field.name as keyof typeof formData;
+
+          return (
+            <div key={field.name}>
+              <label className="block mb-1 capitalize">{field.name}</label>
+              {field.type === "select" ? (
+                <select
+                  name={field.name}
+                  value={getDisplayValue(key)}
+                  onChange={handleChange}
+                  className="w-full border p-2"
+                >
+                  <option value="">Select {field.name}</option>
+                  {field.options?.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  name={field.name}
+                  type={field.type}
+                  value={getDisplayValue(key)}
+                  onChange={handleChange}
+                  className="w-full border p-2"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-2">Card Info</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 capitalize">name</label>
-            <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">card number</label>
-            <input
-              name="cardNumber"
-              value={formData.cardNumber}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">set</label>
-            <input
-              name="set"
-              value={formData.set}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">condition</label>
-            <input
-              list="conditionOptions"
-              name="condition"
-              value={formData.condition}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-            <datalist id="conditionOptions">
-              <option value="Near Mint" />
-              <option value="Lightly Played" />
-              <option value="Moderately Played" />
-              <option value="Heavily Played" />
-              <option value="Damaged" />
-            </datalist>
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">location</label>
-            <input
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Purchase Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 capitalize">purchase price</label>
-            <input
-              type="number"
-              name="purchasePrice"
-              value={formData.purchasePrice}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">purchased from</label>
-            <input
-              name="purchasedFrom"
-              value={formData.purchasedFrom}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">purchase date</label>
-            <input
-              type="date"
-              name="purchaseDate"
-              value={formData.purchaseDate}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Listing Info</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 capitalize">listing price</label>
-            <input
-              type="number"
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">sold date</label>
-            <input
-              type="date"
-              name="soldDate"
-              value={formData.soldDate}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 capitalize">stripe link</label>
-            <input
-              name="stripeLink"
-              value={formData.stripeLink}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Notes</h2>
-        <div className="mb-4">
-          <label className="block mb-1 capitalize">notes</label>
-          <textarea
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            className="w-full border p-2"
-            rows={3}
-          />
-        </div>
+        <label className="block mb-1">Notes</label>
+        <textarea
+          name="notes"
+          value={formData.notes || ""}
+          onChange={handleChange}
+          className="w-full border p-2"
+          rows={3}
+        />
       </div>
 
       <div>
@@ -325,31 +308,13 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
           type="file"
           multiple
           accept="image/*"
-          onChange={async (e) => {
-            const files = e.target.files;
-            const uploaded: { id: string; url: string }[] = [];
-            for (const file of files) {
-              const imageId = uuidv4();
-              const imageRef = ref(storage, `pokemon/${imageId}`);
-              await uploadBytes(imageRef, file);
-              const url = await getDownloadURL(imageRef);
-              uploaded.push({ id: imageId, url });
-            }
-            setItems((prev) => [...prev, ...uploaded]);
-          }}
+          onChange={handleImageUpload}
           className="w-full border p-2 mb-4"
         />
-
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={({ active, over }) => {
-            if (active.id !== over?.id) {
-              const oldIndex = items.findIndex((img) => img.id === active.id);
-              const newIndex = items.findIndex((img) => img.id === over?.id);
-              setItems(arrayMove(items, oldIndex, newIndex));
-            }
-          }}
+          onDragEnd={handleDragEnd}
         >
           <SortableContext
             items={items.map((img) => img.id)}
@@ -362,7 +327,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
                   id={img.id}
                   url={img.url}
                   onRemove={(id) =>
-                    setItems((prev) => prev.filter((img) => img.id !== id))
+                    setItems((prev) => prev.filter((i) => i.id !== id))
                   }
                 />
               ))}
@@ -376,7 +341,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded"
         >
-          {product?.id ? "Update" : "Save"} Pokemon
+          {product?.id ? "Update" : "Save"} Pokémon
         </button>
         {product?.id && (
           <button
