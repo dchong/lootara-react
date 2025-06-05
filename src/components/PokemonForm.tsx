@@ -1,3 +1,4 @@
+// PokemonForm.tsx
 import { useEffect, useState } from "react";
 import { addDoc, updateDoc, doc, collection } from "firebase/firestore";
 import { db, storage } from "@/firebase";
@@ -97,40 +98,22 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
 
   useEffect(() => {
     if (product) {
-      const {
-        status,
-        name,
-        cardNumber,
-        set,
-        condition,
-        location,
-        purchasePrice,
-        purchasedFrom,
-        purchaseDate,
-        price,
-        soldDate,
-        stripeLink,
-        notes,
-        images,
-      } = product;
-
       setFormData({
-        status,
-        name,
-        cardNumber,
-        set,
-        condition,
-        location,
-        purchasePrice,
-        purchasedFrom,
-        purchaseDate,
-        price,
-        soldDate,
-        stripeLink,
-        notes,
+        status: product.status,
+        name: product.name,
+        cardNumber: product.cardNumber,
+        set: product.set,
+        condition: product.condition ?? "",
+        location: product.location ?? "",
+        purchasePrice: product.purchasePrice,
+        purchasedFrom: product.purchasedFrom ?? "",
+        purchaseDate: product.purchaseDate,
+        price: product.price,
+        soldDate: product.soldDate,
+        stripeLink: product.stripeLink ?? "",
+        notes: product.notes ?? "",
       });
-
-      setItems((images || []).map((url) => ({ id: uuidv4(), url })));
+      setItems((product.images || []).map((url) => ({ id: uuidv4(), url })));
     } else {
       resetForm();
     }
@@ -138,35 +121,44 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
 
   const handleChange = (
     e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const { name, value } = e.target;
+
+    const isDateField = name === "purchaseDate" || name === "soldDate";
+    const parsedValue = isDateField
+      ? value
+        ? new Date(value)
+        : undefined
+      : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: name.includes("Date")
-        ? value
-          ? new Date(value)
-          : undefined
-        : value,
+      [name]: parsedValue,
     }));
+  };
+
+  const getDisplayValue = (key: keyof typeof formData): string | number => {
+    const value = formData[key];
+    if (value instanceof Date) {
+      return value.toISOString().split("T")[0];
+    }
+    return value ?? "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const payload = {
       ...formData,
       images: items.map((img) => img.url),
       type: "pokemon" as const,
     };
-
     if (product?.id) {
       await updateDoc(doc(db, "pokemon", product.id), payload);
     } else {
       await addDoc(collection(db, "pokemon"), payload);
     }
-
     if (onSubmit) onSubmit();
     resetForm();
   };
@@ -193,9 +185,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     const uploaded: ImageItem[] = [];
-
     for (const file of Array.from(files)) {
       const imageId = uuidv4();
       const imageRef = ref(storage, `pokemon/${imageId}`);
@@ -203,7 +193,6 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       const url = await getDownloadURL(imageRef);
       uploaded.push({ id: imageId, url });
     }
-
     setItems((prev) => [...prev, ...uploaded]);
   };
 
@@ -216,92 +205,147 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
     }
   };
 
-  const getDisplayValue = (key: keyof typeof formData): string | number => {
-    const value = formData[key];
-
-    if (value instanceof Date) {
-      return value.toISOString().split("T")[0]; // YYYY-MM-DD
-    }
-
-    return value ?? "";
-  };
-
   return (
     <form
       onSubmit={handleSubmit}
       className="bg-white p-6 rounded shadow space-y-6"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          {
-            name: "status",
-            type: "select",
-            options: [
-              "Acquired",
-              "Inventory",
-              "Personal",
-              "Listed",
-              "Sold",
-              "Shipped",
-              "Archived",
-            ],
-          },
-          { name: "name", type: "text" },
-          { name: "cardNumber", type: "text" },
-          { name: "set", type: "text" },
-          { name: "condition", type: "text" },
-          { name: "location", type: "text" },
-          { name: "purchasePrice", type: "number" },
-          { name: "purchasedFrom", type: "text" },
-          { name: "purchaseDate", type: "date" },
-          { name: "price", type: "number" },
-          { name: "soldDate", type: "date" },
-          { name: "stripeLink", type: "text" },
-        ].map((field) => {
-          const key = field.name as keyof typeof formData;
+      {/* General Info */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">General Info</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1">Status</label>
+            <select
+              name="status"
+              value={getDisplayValue("status")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            >
+              <option value="">Select Status</option>
+              {[
+                "Acquired",
+                "Inventory",
+                "Personal",
+                "Listed",
+                "Sold",
+                "Shipped",
+                "Archived",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
-          return (
-            <div key={field.name}>
-              <label className="block mb-1 capitalize">{field.name}</label>
-              {field.type === "select" ? (
-                <select
-                  name={field.name}
-                  value={getDisplayValue(key)}
-                  onChange={handleChange}
-                  className="w-full border p-2"
-                >
-                  <option value="">Select {field.name}</option>
-                  {field.options?.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              ) : (
+      {/* Card Info */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">Card Info</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(["name", "cardNumber", "set", "condition"] as const).map(
+            (field) => (
+              <div key={field}>
+                <label className="block mb-1 capitalize">{field}</label>
                 <input
-                  name={field.name}
-                  type={field.type}
-                  value={getDisplayValue(key)}
+                  name={field}
+                  value={getDisplayValue(field)}
                   onChange={handleChange}
                   className="w-full border p-2"
                 />
-              )}
-            </div>
-          );
-        })}
+              </div>
+            )
+          )}
+        </div>
       </div>
 
+      {/* Purchase Info */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">Purchase Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1">Purchase Price</label>
+            <input
+              type="number"
+              name="purchasePrice"
+              value={getDisplayValue("purchasePrice")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Purchased From</label>
+            <input
+              name="purchasedFrom"
+              value={getDisplayValue("purchasedFrom")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Purchase Date</label>
+            <input
+              type="date"
+              name="purchaseDate"
+              value={getDisplayValue("purchaseDate")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Listing Info */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">Listing Info</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1">Listing Price</label>
+            <input
+              type="number"
+              name="price"
+              value={getDisplayValue("price")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Sold Date</label>
+            <input
+              type="date"
+              name="soldDate"
+              value={getDisplayValue("soldDate")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Stripe Link</label>
+            <input
+              name="stripeLink"
+              value={getDisplayValue("stripeLink")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Notes */}
       <div>
         <label className="block mb-1">Notes</label>
         <textarea
           name="notes"
-          value={formData.notes || ""}
+          value={getDisplayValue("notes")}
           onChange={handleChange}
           className="w-full border p-2"
           rows={3}
         />
       </div>
 
+      {/* Images */}
       <div>
         <label className="block mb-1">Upload Images</label>
         <input
@@ -336,6 +380,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         </DndContext>
       </div>
 
+      {/* Buttons */}
       <div className="flex gap-2">
         <button
           type="submit"
