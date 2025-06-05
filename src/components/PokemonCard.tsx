@@ -22,7 +22,7 @@ const PokemonCard = ({
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect(data.id, e.target.checked)}
-          className="absolute top-2 right-2"
+          className="w-6 h-6 accent-blue-500"
         />
       )}
       <h3 className="font-bold text-lg">{data.name}</h3>
