@@ -10,15 +10,14 @@ const BearbrickCard = ({ data, onEdit, onDelete }: Props) => {
   return (
     <div className="bg-white p-4 rounded shadow">
       <h3 className="font-bold text-lg">{data.name}</h3>
+      <p className="text-sm text-gray-600">Status: {data.status}</p>
+      <p className="text-sm text-gray-600">Set: {data.series || "—"}</p>
       <p className="text-sm text-gray-600">
-        Set: {data.set || "—"} | Condition: {data.condition || "—"}
+        Condition: {data.condition || "—"}
       </p>
-      <p className="text-sm">
-        Price: ${data.price} | Purchase: ${data.purchasePrice || 0} | Status:{" "}
-        {data.status}
-      </p>
+      <p className="text-sm">List Price: ${data.price}</p>
+      <p className="text-sm">Purchase: ${data.purchasePrice || 0}</p>
       <p className="text-sm">Storage Bin: {data.location || "—"}</p>
-      <p className="text-sm">Purchased From: {data.purchasedFrom || "—"}</p>
       <p className="text-sm">Notes: {data.notes || "—"}</p>
 
       <div className="flex flex-wrap gap-2 mt-2">
