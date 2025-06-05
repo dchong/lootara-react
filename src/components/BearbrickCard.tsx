@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BearbrickProduct } from "../types";
 import DetailModal from "./DetailModal";
-
+import { StatusBgClass } from "@/helper";
 interface Props {
   data: BearbrickProduct;
   onEdit?: () => void;
@@ -14,7 +14,9 @@ const BearbrickCard = ({ data, onEdit, onDelete }: Props) => {
   return (
     <>
       <div
-        className="bg-white p-4 rounded shadow flex flex-col h-full min-h-[340px] transition-transform duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer"
+        className={`${StatusBgClass(
+          data.status
+        )} p-4 rounded shadow flex flex-col h-full min-h-[340px] transition-transform duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer`}
         onClick={() => setShowDetail(true)}
       >
         <div className="flex flex-col flex-grow">
