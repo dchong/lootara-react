@@ -32,7 +32,7 @@ const Admin = () => {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 12;
 
   const fetchItems = useCallback(async () => {
     if (activeTab === "acquired") return;
@@ -223,7 +223,7 @@ const Admin = () => {
               </label>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginated.map((item) => {
                 if (isPokemon && isPokemonProduct(item)) {
                   return (
