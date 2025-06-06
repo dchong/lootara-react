@@ -8,6 +8,8 @@ interface Props {
   data: PokemonProduct;
   onEdit?: () => void;
   onDelete?: () => void;
+  isSelected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
 const PokemonCard = ({ data, onEdit, onDelete }: Props) => {

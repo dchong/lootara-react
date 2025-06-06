@@ -274,6 +274,7 @@ const BearbrickForm = ({ product, onSubmit }: BearbrickFormProps) => {
           accept="image/*"
           onChange={async (e) => {
             const files = e.target.files;
+            if (!files) return;
             const uploaded: { id: string; url: string }[] = [];
             for (const file of files) {
               const imageId = uuidv4();
@@ -308,7 +309,7 @@ const BearbrickForm = ({ product, onSubmit }: BearbrickFormProps) => {
                   key={img.id}
                   id={img.id}
                   url={img.url}
-                  onRemove={(id) =>
+                  onRemove={(id: string) =>
                     setItems((prev) => prev.filter((img) => img.id !== id))
                   }
                 />

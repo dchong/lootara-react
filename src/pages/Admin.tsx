@@ -27,9 +27,9 @@ const Admin = () => {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [includeArchived, setIncludeArchived] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<BaseProduct | null>(
-    null
-  );
+  const [editingProduct, setEditingProduct] = useState<
+    PokemonProduct | BearbrickProduct | undefined
+  >(undefined);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
@@ -82,7 +82,7 @@ const Admin = () => {
 
   const handleFormSubmit = () => {
     fetchItems();
-    setEditingProduct(null);
+    setEditingProduct(undefined);
   };
 
   const toggleSelect = (id: string, checked: boolean) => {
@@ -171,15 +171,17 @@ const Admin = () => {
 
       <div className="flex flex-col lg:flex-row lg:items-start gap-8">
         <div className="w-full lg:w-1/2">
-          {isPokemon && (
+          {isPokemon && editingProduct && isPokemonProduct(editingProduct) && (
             <PokemonForm product={editingProduct} onSubmit={handleFormSubmit} />
           )}
-          {isBearbrick && (
-            <BearbrickForm
-              product={editingProduct}
-              onSubmit={handleFormSubmit}
-            />
-          )}
+          {isBearbrick &&
+            editingProduct &&
+            isBearbrickProduct(editingProduct) && (
+              <BearbrickForm
+                product={editingProduct}
+                onSubmit={handleFormSubmit}
+              />
+            )}
           {isAcquired && (
             <AcquiredView
               selectedIds={selectedIds}
