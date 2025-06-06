@@ -1,12 +1,9 @@
-// src/components/Footer.tsx
-import { useEffect, useState } from "react";
+declare const __APP_VERSION__: string; // TypeScript global declaration
 
 const Footer: React.FC = () => {
-  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const year = new Date().getFullYear();
 
-  useEffect(() => {
-    setYear(new Date().getFullYear());
-  }, []);
+  const version = __APP_VERSION__;
 
   return (
     <footer className="text-white py-8 mt-12 bg-[#111111]">
@@ -20,8 +17,9 @@ const Footer: React.FC = () => {
             <a
               href="https://facebook.com"
               target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-blue-400 flex items-center space-x-2"
-              rel="noreferrer"
+              aria-label="Facebook"
             >
               <i className="fab fa-facebook-f fa-lg"></i>
               <span>Facebook</span>
@@ -29,8 +27,9 @@ const Footer: React.FC = () => {
             <a
               href="https://www.instagram.com/shop.lootara/"
               target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-pink-400 flex items-center space-x-2"
-              rel="noreferrer"
+              aria-label="Instagram"
             >
               <i className="fab fa-instagram fa-lg"></i>
               <span>Instagram</span>
@@ -38,8 +37,9 @@ const Footer: React.FC = () => {
             <a
               href="https://x.com"
               target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-blue-300 flex items-center space-x-2"
-              rel="noreferrer"
+              aria-label="X (formerly Twitter)"
             >
               <i className="fab fa-x-twitter fa-lg"></i>
               <span>X</span>
@@ -47,8 +47,9 @@ const Footer: React.FC = () => {
             <a
               href="https://whatnot.com/invite/lootara"
               target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-yellow-400 flex items-center space-x-2"
-              rel="noreferrer"
+              aria-label="Whatnot"
             >
               <i className="fas fa-store fa-lg"></i>
               <span>Whatnot</span>
@@ -80,6 +81,10 @@ const Footer: React.FC = () => {
 
         <div className="mt-6 text-sm text-gray-500 text-center">
           &copy; {year} Lootara. All rights reserved.
+        </div>
+
+        <div className="text-xs text-gray-500 text-center mt-1">
+          Version {version}
         </div>
       </div>
     </footer>
