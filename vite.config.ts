@@ -22,9 +22,6 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    watch: {
-      include: "src/**",
-    },
     rollupOptions: {
       output: {
         manualChunks: {
