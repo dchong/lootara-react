@@ -131,13 +131,13 @@ const Admin = () => {
   );
 
   function isPokemonProduct(product: BaseProduct): product is PokemonProduct {
-    return product.type === "pokemon";
+    return !!product && product.type === "pokemon";
   }
 
   function isBearbrickProduct(
     product: BaseProduct
   ): product is BearbrickProduct {
-    return product.type === "bearbrick";
+    return !!product && product.type === "bearbrick";
   }
 
   return (
@@ -171,17 +171,27 @@ const Admin = () => {
 
       <div className="flex flex-col lg:flex-row lg:items-start gap-8">
         <div className="w-full lg:w-1/2">
-          {isPokemon && editingProduct && isPokemonProduct(editingProduct) && (
-            <PokemonForm product={editingProduct} onSubmit={handleFormSubmit} />
+          {isPokemon && (
+            <PokemonForm
+              product={
+                editingProduct && isPokemonProduct(editingProduct)
+                  ? editingProduct
+                  : undefined
+              }
+              onSubmit={handleFormSubmit}
+            />
           )}
-          {isBearbrick &&
-            editingProduct &&
-            isBearbrickProduct(editingProduct) && (
-              <BearbrickForm
-                product={editingProduct}
-                onSubmit={handleFormSubmit}
-              />
-            )}
+
+          {isBearbrick && (
+            <BearbrickForm
+              product={
+                editingProduct && isBearbrickProduct(editingProduct)
+                  ? editingProduct
+                  : undefined
+              }
+              onSubmit={handleFormSubmit}
+            />
+          )}
           {isAcquired && (
             <AcquiredView
               selectedIds={selectedIds}
