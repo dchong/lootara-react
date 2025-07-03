@@ -20,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PokemonProduct } from "../types";
+import { Timestamp } from "firebase/firestore";
 
 interface PokemonFormProps {
   product?: PokemonProduct;
@@ -145,12 +146,18 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   };
 
   const getDisplayValue = (key: keyof typeof formData): string | number => {
-    const value = formData[key];
-    if (value instanceof Date) {
-      return value.toISOString().split("T")[0];
-    }
-    return value ?? "";
-  };
+  const value = formData[key];
+
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0];
+  }
+
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString().split("T")[0];
+  }
+
+  return value ?? "";
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
