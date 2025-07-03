@@ -1,7 +1,7 @@
 {
   "name": "lootara-react",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "scripts": {
     "bump": "npm version patch --no-git-tag-version",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@tailwindcss/postcss": "^4.1.8",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "@types/react-router-dom": "^5.3.3",

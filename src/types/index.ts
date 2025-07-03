@@ -2,12 +2,10 @@ import { Timestamp } from "firebase/firestore";
 
 export type PokemonProduct = {
   id: string;
-  status: string;
   name: string;
   cardNumber: string;
   set: string;
   condition?: string;
-  location?: string;
   purchasePrice?: number;
   purchasedFrom?: string;
   purchaseDate?: Date | Timestamp;
@@ -15,7 +13,10 @@ export type PokemonProduct = {
   soldDate?: Date | Timestamp;
   stripeLink?: string;
   notes?: string;
+  location?: string;
+  listedOn?: string;
   images?: string[];
+  status: string;
   type: "pokemon";
 };
 

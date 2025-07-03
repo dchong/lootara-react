@@ -85,14 +85,14 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   const [items, setItems] = useState<ImageItem[]>([]);
 
   const [formData, setFormData] = useState<
-    Omit<PokemonProduct, "id" | "images" | "type" | "location">
+    Omit<PokemonProduct, "id" | "images" | "type">
   >({
     status: "",
     name: "",
     cardNumber: "",
     set: "",
     condition: "",
-    bin: "",
+    location: "",
     purchasePrice: undefined,
     purchasedFrom: "",
     purchaseDate: undefined,
@@ -100,6 +100,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
     soldDate: undefined,
     stripeLink: "",
     notes: "",
+    listedOn: "",
   });
 
   useEffect(() => {
@@ -110,7 +111,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         cardNumber: product.cardNumber,
         set: product.set,
         condition: product.condition ?? "",
-        bin: product.location ?? "",
+        location: product.location ?? "",
         purchasePrice: product.purchasePrice,
         purchasedFrom: product.purchasedFrom ?? "",
         purchaseDate:
@@ -170,7 +171,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
 
     const cleanedFormData = {
       ...formData,
-      location: formData.bin ?? "", // store under location in Firestore
+      location: formData.location ?? "", // store under location in Firestore
       price: formData.price ?? 0,
       purchasePrice: formData.purchasePrice ?? 0,
       purchaseDate: formData.purchaseDate ?? null,
@@ -196,7 +197,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       cardNumber: "",
       set: "",
       condition: "",
-      bin: "",
+      location: "",
       purchasePrice: undefined,
       purchasedFrom: "",
       purchaseDate: undefined,
@@ -268,8 +269,8 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
           <div>
             <label className="block mb-1">Bin</label>
             <input
-              name="bin"
-              value={getDisplayValue("bin")}
+              name="location"
+              value={getDisplayValue("location")}
               onChange={handleChange}
               className="w-full border p-2"
             />
