@@ -286,7 +286,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
           />
           <InputField
             label="Card #"
-            name="tcgCardNum"
+            name="cardNumber"
             value={getDisplayValue("cardNumber")}
             onChange={handleChange}
           />
