@@ -1,4 +1,4 @@
-// PokemonForm.tsx
+// Updated PokemonForm.tsx with full Listing Info fields and Firestore support
 import { useEffect, useState } from "react";
 import {
   addDoc,
@@ -48,11 +48,7 @@ function SortableImage({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <div
@@ -80,6 +76,33 @@ function SortableImage({
   );
 }
 
+function InputField({
+  label,
+  name,
+  type = "text",
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<any>) => void;
+}) {
+  return (
+    <div>
+      <label className="block mb-1">{label}</label>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full border p-2"
+      />
+    </div>
+  );
+}
+
 const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   const sensors = useSensors(useSensor(PointerSensor));
   const [items, setItems] = useState<ImageItem[]>([]);
@@ -101,6 +124,12 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
     stripeLink: "",
     notes: "",
     listedOn: "",
+    orderNumber: "",
+    platformFees: undefined,
+    shippingMaterialCost: undefined,
+    postageCost: undefined,
+    shipDate: undefined,
+    tracking: "",
   });
 
   useEffect(() => {
@@ -125,6 +154,16 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
             : (product.soldDate as Timestamp)?.toDate?.() ?? undefined,
         stripeLink: product.stripeLink ?? "",
         notes: product.notes ?? "",
+        listedOn: product.listedOn ?? "",
+        orderNumber: product.orderNumber ?? "",
+        platformFees: product.platformFees,
+        shippingMaterialCost: product.shippingMaterialCost,
+        postageCost: product.postageCost,
+        shipDate:
+          product.shipDate instanceof Date
+            ? product.shipDate
+            : (product.shipDate as Timestamp)?.toDate?.() ?? undefined,
+        tracking: product.tracking ?? "",
       });
       setItems((product.images || []).map((url) => ({ id: uuidv4(), url })));
     } else {
@@ -138,54 +177,35 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
     >
   ) => {
     const { name, value } = e.target;
-
-    const isDateField = name === "purchaseDate" || name === "soldDate";
+    const isDateField = ["purchaseDate", "soldDate", "shipDate"].includes(name);
     const parsedValue = isDateField
       ? value
         ? new Date(value)
         : undefined
       : value;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: parsedValue,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: parsedValue }));
   };
 
   const getDisplayValue = (key: keyof typeof formData): string | number => {
     const value = formData[key];
-
-    if (value instanceof Date) {
-      return value.toISOString().split("T")[0];
-    }
-
-    if (value instanceof Timestamp) {
+    if (value instanceof Date) return value.toISOString().split("T")[0];
+    if (value instanceof Timestamp)
       return value.toDate().toISOString().split("T")[0];
-    }
-
     return value ?? "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const cleanedFormData = {
+    const payload = {
       ...formData,
-      location: formData.location ?? "", // store under location in Firestore
-      price: formData.price ?? 0,
-      purchasePrice: formData.purchasePrice ?? 0,
-      purchaseDate: formData.purchaseDate ?? null,
-      soldDate: formData.soldDate ?? null,
       images: items.map((img) => img.url),
       type: "pokemon" as const,
     };
-
     if (product?.id) {
-      await updateDoc(doc(db, "pokemon", product.id), cleanedFormData);
+      await updateDoc(doc(db, "pokemon", product.id), payload);
     } else {
-      await addDoc(collection(db, "pokemon"), cleanedFormData);
+      await addDoc(collection(db, "pokemon"), payload);
     }
-
     if (onSubmit) onSubmit();
     resetForm();
   };
@@ -205,6 +225,13 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       soldDate: undefined,
       stripeLink: "",
       notes: "",
+      listedOn: "",
+      orderNumber: "",
+      platformFees: undefined,
+      shippingMaterialCost: undefined,
+      postageCost: undefined,
+      shipDate: undefined,
+      tracking: "",
     });
     setItems([]);
   };
@@ -237,171 +264,152 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       onSubmit={handleSubmit}
       className="bg-white p-6 rounded shadow space-y-6"
     >
-      {/* General Info */}
       <div>
         <h2 className="text-lg font-semibold mb-2">General Info</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1">Status</label>
-            <select
-              name="status"
-              value={getDisplayValue("status")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            >
-              <option value="">Select Status</option>
-              {[
-                "Acquired",
-                "Inventory",
-                "Personal",
-                "Listed",
-                "Sold",
-                "Shipped",
-                "Archived",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block mb-1">Bin</label>
-            <input
-              name="location"
-              value={getDisplayValue("location")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
+          <InputField
+            label="Status"
+            name="status"
+            value={getDisplayValue("status")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Bin"
+            name="location"
+            value={getDisplayValue("location")}
+            onChange={handleChange}
+          />
         </div>
       </div>
 
-      {/* Card Info */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Card Info</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(["name", "cardNumber", "set"] as const).map((field) => (
-            <div key={field}>
-              <label className="block mb-1 capitalize">{field}</label>
-              <input
-                name={field}
-                value={getDisplayValue(field)}
-                onChange={handleChange}
-                className="w-full border p-2"
-              />
-            </div>
-          ))}
-          <div>
-            <label className="block mb-1 capitalize">condition</label>
-            <input
-              list="conditionOptions"
-              name="condition"
-              value={formData.condition}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-            <datalist id="conditionOptions">
-              <option value="Near Mint" />
-              <option value="Lightly Played" />
-              <option value="Moderately Played" />
-              <option value="Heavily Played" />
-              <option value="Damaged" />
-            </datalist>
-          </div>
+          <InputField
+            label="Name"
+            name="name"
+            value={getDisplayValue("name")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Card Number"
+            name="cardNumber"
+            value={getDisplayValue("cardNumber")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Set"
+            name="set"
+            value={getDisplayValue("set")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Condition"
+            name="condition"
+            value={getDisplayValue("condition")}
+            onChange={handleChange}
+          />
         </div>
       </div>
 
-      {/* Purchase Info */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Purchase Details</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1">Purchase Price</label>
-            <input
-              type="number"
-              name="purchasePrice"
-              value={getDisplayValue("purchasePrice")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Purchased From</label>
-            <input
-              name="purchasedFrom"
-              value={getDisplayValue("purchasedFrom")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Purchase Date</label>
-            <input
-              type="date"
-              name="purchaseDate"
-              value={getDisplayValue("purchaseDate")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
+          <InputField
+            label="Purchase Price"
+            name="purchasePrice"
+            type="number"
+            value={getDisplayValue("purchasePrice")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Purchased From"
+            name="purchasedFrom"
+            value={getDisplayValue("purchasedFrom")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Purchase Date"
+            name="purchaseDate"
+            type="date"
+            value={getDisplayValue("purchaseDate")}
+            onChange={handleChange}
+          />
         </div>
       </div>
 
-      {/* Listing Info */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Listing Info</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1">Listing Price</label>
-            <input
-              type="number"
-              name="price"
-              value={getDisplayValue("price")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Sold Date</label>
-            <input
-              type="date"
-              name="soldDate"
-              value={getDisplayValue("soldDate")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Stripe Link</label>
-            <input
-              name="stripeLink"
-              value={getDisplayValue("stripeLink")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-          </div>
-          <div>
-            <label className="block mb-1">Listed On</label>
-            <input
-              list="listingPlatforms"
-              name="listedOn"
-              value={getDisplayValue("listedOn")}
-              onChange={handleChange}
-              className="w-full border p-2"
-            />
-            <datalist id="listingPlatforms">
-              <option value="WhatNot" />
-              <option value="Ebay" />
-              <option value="TCGPlayer" />
-              <option value="Private" />
-            </datalist>
-          </div>
+          <InputField
+            label="Listing Price"
+            name="price"
+            type="number"
+            value={getDisplayValue("price")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Listed On"
+            name="listedOn"
+            value={getDisplayValue("listedOn")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Stripe Link"
+            name="stripeLink"
+            value={getDisplayValue("stripeLink")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Sold Date"
+            name="soldDate"
+            type="date"
+            value={getDisplayValue("soldDate")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Order Number"
+            name="orderNumber"
+            value={getDisplayValue("orderNumber")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Platform Fees"
+            name="platformFees"
+            type="number"
+            value={getDisplayValue("platformFees")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Shipping Material Cost"
+            name="shippingMaterialCost"
+            type="number"
+            value={getDisplayValue("shippingMaterialCost")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Postage Cost"
+            name="postageCost"
+            type="number"
+            value={getDisplayValue("postageCost")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Ship Date"
+            name="shipDate"
+            type="date"
+            value={getDisplayValue("shipDate")}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Tracking"
+            name="tracking"
+            value={getDisplayValue("tracking")}
+            onChange={handleChange}
+          />
         </div>
       </div>
 
-      {/* Notes */}
       <div>
         <label className="block mb-1">Notes</label>
         <textarea
@@ -413,7 +421,6 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         />
       </div>
 
-      {/* Images */}
       <div>
         <label className="block mb-1">Upload Images</label>
         <input
@@ -448,7 +455,6 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         </DndContext>
       </div>
 
-      {/* Buttons */}
       <div className="flex gap-2">
         <button
           type="submit"
