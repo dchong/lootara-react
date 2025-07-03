@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+// src/pages/Admin.tsx
+import { useEffect, useState, useCallback, ChangeEvent } from "react";
 import {
   collection,
   getDocs,
@@ -6,6 +7,7 @@ import {
   doc,
   query,
   updateDoc,
+  addDoc,
   where,
   orderBy,
 } from "firebase/firestore";
@@ -17,12 +19,13 @@ import BearbrickCard from "../components/BearbrickCard";
 import AcquiredView from "../components/AcquiredView";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { BaseProduct, PokemonProduct, BearbrickProduct } from "@/types";
+import Papa from "papaparse";
+
+type Tab = "pokemon" | "bearbricks" | "acquired" | "bulk";
 
 const Admin = () => {
   useFirebaseAuth();
-  const [activeTab, setActiveTab] = useState<
-    "pokemon" | "bearbricks" | "acquired"
-  >("pokemon");
+  const [activeTab, setActiveTab] = useState<Tab>("pokemon");
   const [products, setProducts] = useState<BaseProduct[]>([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -33,9 +36,10 @@ const Admin = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [csvUploadStatus, setCsvUploadStatus] = useState("");
 
   const fetchItems = useCallback(async () => {
-    if (activeTab === "acquired") return;
+    if (activeTab === "acquired" || activeTab === "bulk") return;
 
     const colRef = collection(db, activeTab);
     const q = includeArchived
@@ -62,7 +66,7 @@ const Admin = () => {
   }, [activeTab, includeArchived]);
 
   useEffect(() => {
-    if (activeTab !== "acquired") {
+    if (activeTab === "pokemon" || activeTab === "bearbricks") {
       fetchItems();
     }
   }, [activeTab, fetchItems]);
@@ -112,9 +116,84 @@ const Admin = () => {
     onDone?.();
   };
 
+  const handleCsvUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvUploadStatus("Processing...");
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (result) => {
+        let successCount = 0;
+        let failCount = 0;
+
+        const rows = result.data as any[];
+        for (const [i, row] of rows.entries()) {
+          try {
+            const parseDate = (val: string) =>
+              val && val.trim() !== "" ? new Date(val) : undefined;
+
+            const parseNumber = (val: string) =>
+              val && val.trim() !== "" ? parseFloat(val) : undefined;
+
+            const rawPayload = {
+              status: row.Status?.trim() || "",
+              location: row.Bin?.trim() || "",
+              name: row.Name?.trim() || "",
+              cardNumber: row.CardNumber?.trim() || "",
+              set: row.Set?.trim() || "",
+              condition: row.Condition?.trim() || "",
+              purchasePrice: parseNumber(row.PurchasePrice),
+              purchasedFrom: row.PurchaseFrom?.trim() || "",
+              purchaseDate: parseDate(row.PurchaseDate),
+              price: parseNumber(row.ListingPrice),
+              soldDate: parseDate(row.SoldDate),
+              stripeLink: row.StripeLink?.trim() || "",
+              notes: row.Notes?.trim() || "",
+              listedOn: row.ListedOn?.trim() || "",
+            };
+
+            // Remove undefined fields
+            const payload = Object.fromEntries(
+              Object.entries(rawPayload).filter(([_, v]) => v !== undefined)
+            );
+
+            if (!payload.name) {
+              console.warn(`Row ${i + 2} skipped: missing required name`);
+              failCount++;
+              continue;
+            }
+
+            await addDoc(collection(db, "pokemon"), {
+              ...payload,
+              images: [],
+              type: "pokemon",
+            });
+
+            successCount++;
+          } catch (err) {
+            console.error(`Row ${i + 2} failed:`, err);
+            failCount++;
+          }
+        }
+
+        setCsvUploadStatus(
+          `Upload complete: ${successCount} added, ${failCount} failed.`
+        );
+      },
+      error: (err) => {
+        console.error("CSV parse error:", err);
+        setCsvUploadStatus("Failed to parse CSV.");
+      },
+    });
+  };
+
   const isPokemon = activeTab === "pokemon";
   const isBearbrick = activeTab === "bearbricks";
   const isAcquired = activeTab === "acquired";
+  const isBulk = activeTab === "bulk";
 
   const filtered = products.filter((item) => {
     const matchSearch = item.name
@@ -130,161 +209,155 @@ const Admin = () => {
     currentPage * itemsPerPage
   );
 
-  function isPokemonProduct(product: BaseProduct): product is PokemonProduct {
-    return !!product && product.type === "pokemon";
-  }
-
-  function isBearbrickProduct(
-    product: BaseProduct
-  ): product is BearbrickProduct {
-    return !!product && product.type === "bearbrick";
-  }
-
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6 flex space-x-4">
-        <button
-          onClick={() => setActiveTab("pokemon")}
-          className={`px-4 py-2 rounded ${
-            isPokemon ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-        >
-          Pokémon
-        </button>
-        <button
-          onClick={() => setActiveTab("bearbricks")}
-          className={`px-4 py-2 rounded ${
-            isBearbrick ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-        >
-          Bearbricks
-        </button>
-        <button
-          onClick={() => setActiveTab("acquired")}
-          className={`px-4 py-2 rounded ${
-            isAcquired ? "bg-blue-500 text-white" : "bg-gray-300"
-          }`}
-        >
-          Acquired
-        </button>
+        {(["pokemon", "bearbricks", "acquired", "bulk"] as Tab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded ${
+              activeTab === tab ? "bg-blue-500 text-white" : "bg-gray-300"
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
       </div>
 
-      <div className="flex flex-col lg:flex-row lg:items-start gap-8">
-        <div className="w-full lg:w-1/2">
-          {isPokemon && (
-            <PokemonForm
-              product={
-                editingProduct && isPokemonProduct(editingProduct)
-                  ? editingProduct
-                  : undefined
-              }
-              onSubmit={handleFormSubmit}
-            />
-          )}
-
-          {isBearbrick && (
-            <BearbrickForm
-              product={
-                editingProduct && isBearbrickProduct(editingProduct)
-                  ? editingProduct
-                  : undefined
-              }
-              onSubmit={handleFormSubmit}
-            />
-          )}
-          {isAcquired && (
-            <AcquiredView
-              selectedIds={selectedIds}
-              onSelect={toggleSelect}
-              onBulkUpdate={handleBulkUpdate}
-            />
+      {isBulk ? (
+        <div className="bg-white p-6 rounded shadow space-y-4 max-w-xl">
+          <h2 className="text-xl font-bold">Bulk Upload Pokémon Cards</h2>
+          <input type="file" accept=".csv" onChange={handleCsvUpload} />
+          {csvUploadStatus && (
+            <p className="text-sm text-gray-700">{csvUploadStatus}</p>
           )}
         </div>
-
-        {(isPokemon || isBearbrick) && (
-          <div className="w-full lg:w-1/2 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/2"
+      ) : (
+        <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+          <div className="w-full lg:w-1/2">
+            {isPokemon && (
+              <PokemonForm
+                product={
+                  editingProduct && editingProduct.type === "pokemon"
+                    ? editingProduct
+                    : undefined
+                }
+                onSubmit={handleFormSubmit}
               />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/4"
-              >
-                <option value="all">All Statuses</option>
-                <option value="Acquired">Acquired</option>
-                <option value="Inventory">Inventory</option>
-                <option value="Personal">Personal Collection</option>
-                <option value="Listed">Listed</option>
-                <option value="Pending Sale">Pending Sale</option>
-                <option value="Sold">Sold</option>
-                <option value="Archived">Archived</option>
-              </select>
-              <label className="flex items-center space-x-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={includeArchived}
-                  onChange={() => setIncludeArchived((prev) => !prev)}
-                />
-                <span>Show Archived</span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {paginated.map((item) => {
-                if (isPokemon && isPokemonProduct(item)) {
-                  return (
-                    <PokemonCard
-                      key={item.id}
-                      data={item}
-                      onEdit={() => handleEdit(item)}
-                      onDelete={() => handleDelete(item.id ?? "")}
-                    />
-                  );
+            )}
+            {isBearbrick && (
+              <BearbrickForm
+                product={
+                  editingProduct && editingProduct.type === "bearbrick"
+                    ? editingProduct
+                    : undefined
                 }
-                if (isBearbrick && isBearbrickProduct(item)) {
-                  return (
-                    <BearbrickCard
-                      key={item.id}
-                      data={item}
-                      onEdit={() => handleEdit(item)}
-                      onDelete={() => handleDelete(item.id ?? "")}
-                    />
-                  );
-                }
-                return null;
-              })}
-            </div>
-
-            <div className="flex justify-center items-center gap-4 mt-4">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-              >
-                Prev
-              </button>
-              <span className="text-sm">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+                onSubmit={handleFormSubmit}
+              />
+            )}
+            {isAcquired && (
+              <AcquiredView
+                selectedIds={selectedIds}
+                onSelect={toggleSelect}
+                onBulkUpdate={handleBulkUpdate}
+              />
+            )}
           </div>
-        )}
-      </div>
+
+          {(isPokemon || isBearbrick) && (
+            <div className="w-full lg:w-1/2 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <input
+                  type="text"
+                  placeholder="Search by name..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/2"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded w-full sm:w-1/4"
+                >
+                  <option value="all">All Statuses</option>
+                  {[
+                    "Acquired",
+                    "Inventory",
+                    "Personal",
+                    "Listed",
+                    "Pending Sale",
+                    "Sold",
+                    "Archived",
+                  ].map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={includeArchived}
+                    onChange={() => setIncludeArchived((prev) => !prev)}
+                  />
+                  <span>Show Archived</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginated.map((item) => {
+                  if (isPokemon && item.type === "pokemon") {
+                    return (
+                      <PokemonCard
+                        key={item.id}
+                        data={item}
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item.id ?? "")}
+                      />
+                    );
+                  }
+                  if (isBearbrick && item.type === "bearbrick") {
+                    return (
+                      <BearbrickCard
+                        key={item.id}
+                        data={item}
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item.id ?? "")}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
