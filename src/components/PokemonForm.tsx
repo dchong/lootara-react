@@ -1,6 +1,12 @@
 // PokemonForm.tsx
 import { useEffect, useState } from "react";
-import { addDoc, updateDoc, doc, collection } from "firebase/firestore";
+import {
+  addDoc,
+  updateDoc,
+  doc,
+  collection,
+  Timestamp,
+} from "firebase/firestore";
 import { db, storage } from "@/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
@@ -20,7 +26,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PokemonProduct } from "../types";
-import { Timestamp } from "firebase/firestore";
 
 interface PokemonFormProps {
   product?: PokemonProduct;
@@ -80,14 +85,14 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   const [items, setItems] = useState<ImageItem[]>([]);
 
   const [formData, setFormData] = useState<
-    Omit<PokemonProduct, "id" | "images" | "type">
+    Omit<PokemonProduct, "id" | "images" | "type" | "location">
   >({
     status: "",
     name: "",
     cardNumber: "",
     set: "",
     condition: "",
-    location: "",
+    bin: "",
     purchasePrice: undefined,
     purchasedFrom: "",
     purchaseDate: undefined,
@@ -105,17 +110,18 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         cardNumber: product.cardNumber,
         set: product.set,
         condition: product.condition ?? "",
-        location: product.location ?? "",
+        bin: product.location ?? "",
         purchasePrice: product.purchasePrice,
         purchasedFrom: product.purchasedFrom ?? "",
-       purchaseDate:
-  product.purchaseDate instanceof Date
-    ? product.purchaseDate
-    : product.purchaseDate?.toDate?.() ?? undefined,
+        purchaseDate:
+          product.purchaseDate instanceof Date
+            ? product.purchaseDate
+            : (product.purchaseDate as Timestamp)?.toDate?.() ?? undefined,
         price: product.price,
-        soldDate: product.soldDate instanceof Date
-    ? product.soldDate
-    : product.soldDate?.toDate?.() ?? undefined,
+        soldDate:
+          product.soldDate instanceof Date
+            ? product.soldDate
+            : (product.soldDate as Timestamp)?.toDate?.() ?? undefined,
         stripeLink: product.stripeLink ?? "",
         notes: product.notes ?? "",
       });
@@ -146,26 +152,28 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   };
 
   const getDisplayValue = (key: keyof typeof formData): string | number => {
-  const value = formData[key];
+    const value = formData[key];
 
-  if (value instanceof Date) {
-    return value.toISOString().split("T")[0];
-  }
+    if (value instanceof Date) {
+      return value.toISOString().split("T")[0];
+    }
 
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString().split("T")[0];
-  }
+    if (value instanceof Timestamp) {
+      return value.toDate().toISOString().split("T")[0];
+    }
 
-  return value ?? "";
-};
+    return value ?? "";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const cleanedFormData = {
       ...formData,
+      location: formData.bin ?? "", // store under location in Firestore
       price: formData.price ?? 0,
       purchasePrice: formData.purchasePrice ?? 0,
+      purchaseDate: formData.purchaseDate ?? null,
       soldDate: formData.soldDate ?? null,
       images: items.map((img) => img.url),
       type: "pokemon" as const,
@@ -188,7 +196,7 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       cardNumber: "",
       set: "",
       condition: "",
-      location: "",
+      bin: "",
       purchasePrice: undefined,
       purchasedFrom: "",
       purchaseDate: undefined,
@@ -255,6 +263,16 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block mb-1">Bin</label>
+            <input
+              name="bin"
+              value={getDisplayValue("bin")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
           </div>
         </div>
       </div>
@@ -362,6 +380,22 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
               onChange={handleChange}
               className="w-full border p-2"
             />
+          </div>
+          <div>
+            <label className="block mb-1">Listed On</label>
+            <input
+              list="listingPlatforms"
+              name="listedOn"
+              value={getDisplayValue("listedOn")}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+            <datalist id="listingPlatforms">
+              <option value="WhatNot" />
+              <option value="Ebay" />
+              <option value="TCGPlayer" />
+              <option value="Private" />
+            </datalist>
           </div>
         </div>
       </div>
