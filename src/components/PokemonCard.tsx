@@ -1,4 +1,4 @@
-// Updated PokemonCard.tsx
+// PokemonCard.tsx
 import { useState } from "react";
 import { PokemonProduct } from "../types";
 import DetailModal from "./DetailModal";
@@ -12,7 +12,7 @@ interface Props {
   onSelect?: (id: string, checked: boolean) => void;
 }
 
-const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
+const PokemonCard = ({ data, onEdit, onDelete, isSelected, onSelect }: Props) => {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
@@ -23,6 +23,22 @@ const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
         )} p-4 rounded shadow flex flex-col h-full min-h-[340px] transition-transform duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer`}
         onClick={() => setShowDetail(true)}
       >
+        {/* Checkbox */}
+        {onSelect && (
+          <div className="mb-2">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => onSelect(data.id ?? "", e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-sm">Select</span>
+            </label>
+          </div>
+        )}
+
+        {/* Card Content */}
         <div className="flex flex-col flex-grow">
           <h3 className="font-bold text-lg mb-1 line-clamp-1">{data.name}</h3>
           <p className="text-sm text-gray-600">
@@ -50,6 +66,7 @@ const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
           </div>
         </div>
 
+        {/* Edit/Delete Buttons */}
         {(onEdit || onDelete) && (
           <div
             className="mt-auto pt-4 flex gap-2 z-10 relative"
@@ -75,6 +92,7 @@ const PokemonCard = ({ data, onEdit, onDelete }: Props) => {
         )}
       </div>
 
+      {/* Detail Modal */}
       {showDetail && (
         <DetailModal item={data} onClose={() => setShowDetail(false)} />
       )}
