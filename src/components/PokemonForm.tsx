@@ -107,9 +107,14 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
         location: product.location ?? "",
         purchasePrice: product.purchasePrice,
         purchasedFrom: product.purchasedFrom ?? "",
-        purchaseDate: product.purchaseDate,
+       purchaseDate:
+  product.purchaseDate instanceof Date
+    ? product.purchaseDate
+    : product.purchaseDate?.toDate?.() ?? undefined,
         price: product.price,
-        soldDate: product.soldDate,
+        soldDate: product.soldDate instanceof Date
+    ? product.soldDate
+    : product.soldDate?.toDate?.() ?? undefined,
         stripeLink: product.stripeLink ?? "",
         notes: product.notes ?? "",
       });
@@ -149,16 +154,22 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
+
+    const cleanedFormData = {
       ...formData,
+      price: formData.price ?? 0,
+      purchasePrice: formData.purchasePrice ?? 0,
+      soldDate: formData.soldDate ?? null,
       images: items.map((img) => img.url),
       type: "pokemon" as const,
     };
+
     if (product?.id) {
-      await updateDoc(doc(db, "pokemon", product.id), payload);
+      await updateDoc(doc(db, "pokemon", product.id), cleanedFormData);
     } else {
-      await addDoc(collection(db, "pokemon"), payload);
+      await addDoc(collection(db, "pokemon"), cleanedFormData);
     }
+
     if (onSubmit) onSubmit();
     resetForm();
   };
