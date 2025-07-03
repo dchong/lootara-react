@@ -26,6 +26,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PokemonProduct } from "../types";
+import InputField from "@/components/InputField";
 
 interface PokemonFormProps {
   product?: PokemonProduct;
@@ -72,33 +73,6 @@ function SortableImage({
       >
         ✕
       </button>
-    </div>
-  );
-}
-
-function InputField({
-  label,
-  name,
-  type = "text",
-  value,
-  onChange,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  value: string | number;
-  onChange: (e: React.ChangeEvent<any>) => void;
-}) {
-  return (
-    <div>
-      <label className="block mb-1">{label}</label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full border p-2"
-      />
     </div>
   );
 }
@@ -273,12 +247,25 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
       <div>
         <h2 className="text-lg font-semibold mb-2">General Info</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InputField
-            label="Status"
-            name="status"
-            value={getDisplayValue("status")}
-            onChange={handleChange}
-          />
+          <div>
+            <label className="block mb-1 capitalize">Status</label>
+            <input
+              list="statusOptions"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+            <datalist id="statusOptions">
+              <option value="Acquired" />
+              <option value="Inventory" />
+              <option value="Personal" />
+              <option value="Listed" />
+              <option value="Sold" />
+              <option value="Shipped" />
+              <option value="Archive" />
+            </datalist>
+          </div>
           <InputField
             label="Bin"
             name="location"
@@ -298,8 +285,8 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
             onChange={handleChange}
           />
           <InputField
-            label="Card Number"
-            name="cardNumber"
+            label="Card #"
+            name="tcgCardNum"
             value={getDisplayValue("cardNumber")}
             onChange={handleChange}
           />
@@ -328,12 +315,22 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
             value={getDisplayValue("purchasePrice")}
             onChange={handleChange}
           />
-          <InputField
-            label="Purchased From"
-            name="purchasedFrom"
-            value={getDisplayValue("purchasedFrom")}
-            onChange={handleChange}
-          />
+          <div>
+            <label className="block mb-1 capitalize">Purchased From</label>
+            <input
+              list="purchasedFromOptions"
+              name="purchasedFrom"
+              value={formData.purchasedFrom}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+            <datalist id="purchasedFromOptions">
+              <option value="WhatNot" />
+              <option value="Ebay" />
+              <option value="TcgPlayer" />
+              <option value="Private" />
+            </datalist>
+          </div>
           <InputField
             label="Purchase Date"
             name="purchaseDate"
@@ -354,12 +351,22 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
             value={getDisplayValue("price")}
             onChange={handleChange}
           />
-          <InputField
-            label="Listed On"
-            name="listedOn"
-            value={getDisplayValue("listedOn")}
-            onChange={handleChange}
-          />
+          <div>
+            <label className="block mb-1 capitalize">Listed On</label>
+            <input
+              list="listedOnOptions"
+              name="listedOn"
+              value={formData.listedOn}
+              onChange={handleChange}
+              className="w-full border p-2"
+            />
+            <datalist id="listedOnOptions">
+              <option value="WhatNot" />
+              <option value="Ebay" />
+              <option value="TcgPlayer" />
+              <option value="Private" />
+            </datalist>
+          </div>
           <InputField
             label="Stripe Link"
             name="stripeLink"
