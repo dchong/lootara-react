@@ -1,4 +1,4 @@
-// Updated PokemonForm.tsx with full Listing Info fields and Firestore support
+// PokemonForm.tsx
 import { useEffect, useState } from "react";
 import {
   addDoc,
@@ -103,6 +103,12 @@ function InputField({
   );
 }
 
+function cleanUndefined(obj: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, v === undefined ? null : v])
+  );
+}
+
 const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
   const sensors = useSensors(useSensor(PointerSensor));
   const [items, setItems] = useState<ImageItem[]>([]);
@@ -196,11 +202,11 @@ const PokemonForm = ({ product, onSubmit }: PokemonFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
+    const payload = cleanUndefined({
       ...formData,
       images: items.map((img) => img.url),
       type: "pokemon" as const,
-    };
+    });
     if (product?.id) {
       await updateDoc(doc(db, "pokemon", product.id), payload);
     } else {
