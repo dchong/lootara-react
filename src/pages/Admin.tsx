@@ -151,11 +151,16 @@ const Admin = () => {
               price: parseNumber(row.ListingPrice),
               soldDate: parseDate(row.SoldDate),
               stripeLink: row.StripeLink?.trim() || "",
-              notes: row.Notes?.trim() || "",
               listedOn: row.ListedOn?.trim() || "",
+              notes: row.Notes?.trim() || "",
+              orderNumber: row.OrderNumber?.trim() || "",
+              platformFees: parseNumber(row.PlatformFees),
+              shippingMaterialCost: parseNumber(row.ShippingMaterialCost),
+              postageCost: parseNumber(row.PostageCost),
+              shipDate: parseDate(row.ShipDate),
+              tracking: row.Tracking?.trim() || "",
             };
 
-            // Remove undefined fields
             const payload = Object.fromEntries(
               Object.entries(rawPayload).filter(([_, v]) => v !== undefined)
             );

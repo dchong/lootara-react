@@ -17,6 +17,12 @@ export type PokemonProduct = {
   listedOn?: string;
   images?: string[];
   status: string;
+  orderNumber?: string;
+  platformFees?: number;
+  shippingMaterialCost?: number;
+  postageCost?: number;
+  shipDate?: Date | Timestamp;
+  tracking?: string;
   type: "pokemon";
 };
 
